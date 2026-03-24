@@ -54,29 +54,35 @@ Override per-run via environment variables:
 | `CI_BENCH_PROVIDER` | Provider name for results labeling | `unknown` |
 | `CI_BENCH_RUNNER` | Runner name for results labeling | `default` |
 | `CI_BENCH_CPU_ENABLED` | Enable/disable CPU benchmark | `true` |
-| `CI_BENCH_ITERATIONS` | Number of measured iterations | `5` |
+| `CI_BENCH_ITERATIONS` | Number of measured iterations (CPU) | `5` |
 | `CI_BENCH_CPU_MAX_PRIME` | Sysbench cpu-max-prime parameter | `20000` |
-| `CI_BENCH_CPU_WARMUP` | Run a warmup iteration before measuring | `true` |
+| `CI_BENCH_CPU_WARMUP` | Run a warmup iteration before measuring (CPU) | `true` |
+| `CI_BENCH_MEMORY_ENABLED` | Enable/disable memory benchmark | `true` |
+| `CI_BENCH_MEMORY_ITERATIONS` | Number of measured iterations (memory) | `5` |
+| `CI_BENCH_MEMORY_BLOCK_SIZE` | Sysbench memory-block-size parameter | `1K` |
+| `CI_BENCH_MEMORY_TOTAL_SIZE` | Sysbench memory-total-size parameter | `10G` |
+| `CI_BENCH_MEMORY_WARMUP` | Run a warmup iteration before measuring (memory) | `true` |
 
 ## Results
 
 Results are stored in two formats:
 
-- **`results/raw/*.json`** — one file per run, full data including all scores, system info, and load average
-- **`results/summary.md`** — auto-generated leaderboard showing the most recent run per provider/runner, sorted by CPU score
+- **`results/raw/*.json`** — one file per run, full data including all scores (CPU + memory), system info, and load average
+- **`results/summary.md`** — auto-generated leaderboard showing the most recent run per provider/runner, sorted by CPU score, with memory throughput
 
 ### Example summary output
 
-| Provider | Runner | CPU Score (median) | Stddev | Processor | vCPUs | RAM |
-|---|---|---|---|---|---|---|
-| circleci | medium | 3587.2 events/sec | ±42.10 | AMD EPYC 7R13 | 2 | 4096 MB |
-| github-actions | ubuntu-latest | 3421.5 events/sec | ±38.50 | AMD EPYC 7763 | 2 | 7168 MB |
+| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Processor | vCPUs | RAM |
+|---|---|---|---|---|---|---|---|---|
+| circleci | medium | 3587.2 events/sec | ±42.10 | 8523.40 MiB/sec | ±120.30 | AMD EPYC 7R13 | 2 | 4096 MB |
+| github-actions | ubuntu-latest | 3421.5 events/sec | ±38.50 | 7891.20 MiB/sec | ±95.60 | AMD EPYC 7763 | 2 | 7168 MB |
 
 ## Project Structure
 
     benchmarks/
       run.sh              Main entrypoint script
       lib/cpu.sh          CPU benchmark (sysbench)
+      lib/memory.sh       Memory benchmark (sysbench)
     config/
       benchmarks.yml      Benchmark configuration (flat key-value)
     results/

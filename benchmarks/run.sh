@@ -9,12 +9,17 @@ set -euo pipefail
 # runs enabled benchmarks, writes JSON results, and regenerates the summary.
 #
 # Environment variable overrides (take precedence over config file):
-#   CI_BENCH_PROVIDER       — provider name (e.g. "github-actions")
-#   CI_BENCH_RUNNER         — runner label (e.g. "ubuntu-latest")
-#   CI_BENCH_CPU_ENABLED    — "true" / "false"
-#   CI_BENCH_ITERATIONS     — number of measured iterations
-#   CI_BENCH_CPU_MAX_PRIME  — sysbench cpu-max-prime parameter
-#   CI_BENCH_CPU_WARMUP     — "true" / "false"
+#   CI_BENCH_PROVIDER            — provider name (e.g. "github-actions")
+#   CI_BENCH_RUNNER              — runner label (e.g. "ubuntu-latest")
+#   CI_BENCH_CPU_ENABLED         — "true" / "false"
+#   CI_BENCH_ITERATIONS          — number of measured iterations
+#   CI_BENCH_CPU_MAX_PRIME       — sysbench cpu-max-prime parameter
+#   CI_BENCH_CPU_WARMUP          — "true" / "false"
+#   CI_BENCH_MEMORY_ENABLED      — "true" / "false"
+#   CI_BENCH_MEMORY_ITERATIONS   — number of measured iterations (memory)
+#   CI_BENCH_MEMORY_BLOCK_SIZE   — sysbench memory-block-size parameter
+#   CI_BENCH_MEMORY_TOTAL_SIZE   — sysbench memory-total-size parameter
+#   CI_BENCH_MEMORY_WARMUP       — "true" / "false"
 ###############################################################################
 
 # ---------------------------------------------------------------------------
@@ -65,12 +70,22 @@ if [[ -f "$CONFIG_FILE" ]]; then
     CFG_ITERATIONS="$(yaml_get   "$CONFIG_FILE" "cpu_iterations" "5")"
     CFG_CPU_MAX_PRIME="$(yaml_get "$CONFIG_FILE" "cpu_max_prime" "20000")"
     CFG_CPU_WARMUP="$(yaml_get   "$CONFIG_FILE" "cpu_warmup"    "true")"
+    CFG_MEMORY_ENABLED="$(yaml_get    "$CONFIG_FILE" "memory_enabled"    "true")"
+    CFG_MEMORY_ITERATIONS="$(yaml_get "$CONFIG_FILE" "memory_iterations" "5")"
+    CFG_MEMORY_BLOCK_SIZE="$(yaml_get "$CONFIG_FILE" "memory_block_size" "1K")"
+    CFG_MEMORY_TOTAL_SIZE="$(yaml_get "$CONFIG_FILE" "memory_total_size" "10G")"
+    CFG_MEMORY_WARMUP="$(yaml_get     "$CONFIG_FILE" "memory_warmup"     "true")"
 else
     log "  Config file not found — using defaults"
     CFG_CPU_ENABLED="true"
     CFG_ITERATIONS="5"
     CFG_CPU_MAX_PRIME="20000"
     CFG_CPU_WARMUP="true"
+    CFG_MEMORY_ENABLED="true"
+    CFG_MEMORY_ITERATIONS="5"
+    CFG_MEMORY_BLOCK_SIZE="1K"
+    CFG_MEMORY_TOTAL_SIZE="10G"
+    CFG_MEMORY_WARMUP="true"
 fi
 
 # Environment variable overrides take precedence
@@ -78,15 +93,25 @@ CPU_ENABLED="${CI_BENCH_CPU_ENABLED:-$CFG_CPU_ENABLED}"
 ITERATIONS="${CI_BENCH_ITERATIONS:-$CFG_ITERATIONS}"
 CPU_MAX_PRIME="${CI_BENCH_CPU_MAX_PRIME:-$CFG_CPU_MAX_PRIME}"
 CPU_WARMUP="${CI_BENCH_CPU_WARMUP:-$CFG_CPU_WARMUP}"
+MEMORY_ENABLED="${CI_BENCH_MEMORY_ENABLED:-$CFG_MEMORY_ENABLED}"
+MEMORY_ITERATIONS="${CI_BENCH_MEMORY_ITERATIONS:-$CFG_MEMORY_ITERATIONS}"
+MEMORY_BLOCK_SIZE="${CI_BENCH_MEMORY_BLOCK_SIZE:-$CFG_MEMORY_BLOCK_SIZE}"
+MEMORY_TOTAL_SIZE="${CI_BENCH_MEMORY_TOTAL_SIZE:-$CFG_MEMORY_TOTAL_SIZE}"
+MEMORY_WARMUP="${CI_BENCH_MEMORY_WARMUP:-$CFG_MEMORY_WARMUP}"
 PROVIDER="${CI_BENCH_PROVIDER:-unknown}"
 RUNNER="${CI_BENCH_RUNNER:-default}"
 
-log "  provider      = ${PROVIDER}"
-log "  runner        = ${RUNNER}"
-log "  cpu_enabled   = ${CPU_ENABLED}"
-log "  iterations    = ${ITERATIONS}"
-log "  cpu_max_prime = ${CPU_MAX_PRIME}"
-log "  cpu_warmup    = ${CPU_WARMUP}"
+log "  provider           = ${PROVIDER}"
+log "  runner             = ${RUNNER}"
+log "  cpu_enabled        = ${CPU_ENABLED}"
+log "  iterations         = ${ITERATIONS}"
+log "  cpu_max_prime      = ${CPU_MAX_PRIME}"
+log "  cpu_warmup         = ${CPU_WARMUP}"
+log "  memory_enabled     = ${MEMORY_ENABLED}"
+log "  memory_iterations  = ${MEMORY_ITERATIONS}"
+log "  memory_block_size  = ${MEMORY_BLOCK_SIZE}"
+log "  memory_total_size  = ${MEMORY_TOTAL_SIZE}"
+log "  memory_warmup      = ${MEMORY_WARMUP}"
 
 # ---------------------------------------------------------------------------
 # Collect system information
@@ -215,10 +240,87 @@ if [[ "${CPU_ENABLED}" == "true" ]]; then
         MEDIAN="$(echo "$CPU_JSON" | jq '.median')"
         STDDEV="$(echo "$CPU_JSON" | jq '.stddev')"
         log "  median = ${MEDIAN} events/sec (stddev: ${STDDEV})"
-        BENCHMARKS_JSON="$(jq -n --argjson cpu "$CPU_JSON" '{ "cpu": $cpu }')"
+        BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson cpu "$CPU_JSON" '. + { "cpu": $cpu }')"
     fi
 else
     log "CPU benchmark is disabled — skipping"
+fi
+
+# --- Memory benchmark -----------------------------------------------------
+if [[ "${MEMORY_ENABLED}" == "true" ]]; then
+    log "Running memory benchmark..."
+
+    MEMORY_SCRIPT="${LIB_DIR}/memory.sh"
+    MEMORY_JSON=""
+
+    if [[ -f "$MEMORY_SCRIPT" ]]; then
+        # Delegate to the library script (call with bash to avoid executable-bit issues).
+        # memory.sh <iterations> [memory_block_size] [memory_total_size] [warmup]
+        # Stdout = JSON result, stderr = progress messages (shown in CI logs).
+        MEMORY_JSON="$(bash "$MEMORY_SCRIPT" "$MEMORY_ITERATIONS" "$MEMORY_BLOCK_SIZE" "$MEMORY_TOTAL_SIZE" "$MEMORY_WARMUP")" || {
+            log "  WARNING: memory.sh failed — falling back to direct sysbench"
+            MEMORY_JSON=""
+        }
+    fi
+
+    # Fallback: call sysbench directly if memory.sh is missing or failed
+    if [[ -z "$MEMORY_JSON" ]] && command -v sysbench &>/dev/null; then
+        log "  Using inline sysbench fallback..."
+        MEM_SCORES=()
+
+        # Warmup
+        if [[ "$MEMORY_WARMUP" == "true" ]]; then
+            log "  Warmup: running one throwaway iteration..."
+            sysbench memory --memory-block-size="$MEMORY_BLOCK_SIZE" --memory-total-size="$MEMORY_TOTAL_SIZE" --threads=1 run >/dev/null 2>&1 || true
+        fi
+
+        for (( i = 1; i <= MEMORY_ITERATIONS; i++ )); do
+            log "  iteration ${i}/${MEMORY_ITERATIONS}"
+            score="$(sysbench memory --memory-block-size="$MEMORY_BLOCK_SIZE" --memory-total-size="$MEMORY_TOTAL_SIZE" --threads=1 run \
+                | grep -oP '[\d.]+(?=\s*MiB/sec)' \
+                | head -n1)" || score="0"
+            [[ -z "$score" ]] && score="0"
+            MEM_SCORES+=("$score")
+            log "    score = ${score}"
+        done
+
+        if [[ ${#MEM_SCORES[@]} -gt 0 ]]; then
+            SCORES_JSON="$(printf '%s\n' "${MEM_SCORES[@]}" | jq -s '.')"
+            MEDIAN="$(printf '%s\n' "${MEM_SCORES[@]}" | jq -s 'sort | if length == 0 then 0 elif length % 2 == 1 then .[length/2 | floor] else (.[length/2 - 1] + .[length/2]) / 2 end')"
+            MIN_S="$(printf '%s\n' "${MEM_SCORES[@]}" | jq -s 'min')"
+            MAX_S="$(printf '%s\n' "${MEM_SCORES[@]}" | jq -s 'max')"
+            STDDEV="$(printf '%s\n' "${MEM_SCORES[@]}" | awk '{sum+=$1; sumsq+=($1*$1); n++} END { if(n>0){m=sum/n; v=(sumsq/n)-(m*m); if(v<0)v=0; printf "%.2f",sqrt(v)} else print "0" }')"
+            MEMORY_JSON="$(jq -n \
+                --argjson scores "$SCORES_JSON" \
+                --argjson median "$MEDIAN" \
+                --argjson min "$MIN_S" \
+                --argjson max "$MAX_S" \
+                --argjson stddev "$STDDEV" \
+                --argjson iterations "$MEMORY_ITERATIONS" \
+                '{
+                    "tool": "sysbench",
+                    "iterations": $iterations,
+                    "scores": $scores,
+                    "median": $median,
+                    "min": $min,
+                    "max": $max,
+                    "stddev": $stddev,
+                    "unit": "MiB/sec"
+                }'
+            )"
+        fi
+    elif [[ -z "$MEMORY_JSON" ]]; then
+        log "  WARNING: Neither benchmarks/lib/memory.sh nor sysbench found — skipping memory benchmark"
+    fi
+
+    if [[ -n "$MEMORY_JSON" ]]; then
+        MEDIAN="$(echo "$MEMORY_JSON" | jq '.median')"
+        STDDEV="$(echo "$MEMORY_JSON" | jq '.stddev')"
+        log "  median = ${MEDIAN} MiB/sec (stddev: ${STDDEV})"
+        BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson memory "$MEMORY_JSON" '. + { "memory": $memory }')"
+    fi
+else
+    log "Memory benchmark is disabled — skipping"
 fi
 
 # ---------------------------------------------------------------------------
@@ -270,8 +372,8 @@ SUMMARY_FILE="${RESULTS_DIR}/summary.md"
     echo "Showing the most recent run per provider/runner combination."
     echo "Full history is available in [\`results/raw/\`](raw/)."
     echo ""
-    echo "| Provider | Runner | CPU Score (median) | Stddev | Processor | vCPUs | RAM |"
-    echo "|----------|--------|--------------------|--------|-----------|-------|-----|"
+    echo "| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Processor | vCPUs | RAM |"
+    echo "|----------|--------|--------------------|------------|-----------------|------------|-----------|-------|-----|"
 } > "$SUMMARY_FILE"
 
 # Strategy: emit tab-separated rows with timestamp, then sort to pick the
@@ -286,6 +388,8 @@ for json_file in "${RAW_DIR}"/*.json; do
             .timestamp // "1970-01-01T00:00:00Z",
             ((.benchmarks.cpu.median // 0) | tostring),
             ((.benchmarks.cpu.stddev // 0) | tostring),
+            ((.benchmarks.memory.median // 0) | tostring),
+            ((.benchmarks.memory.stddev // 0) | tostring),
             .system.processor // "unknown",
             ((.system.vcpus // 0) | tostring),
             ((.system.ram_mb // 0) | tostring)
@@ -312,9 +416,17 @@ if [[ -n "$ALL_ROWS" ]]; then
     # Sort by CPU median score (field 4) descending, then format as Markdown
     printf '%s\n' "$DEDUPED" \
         | sort -t$'\t' -k4 -rn \
-        | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_stddev r_proc r_vcpus r_ram; do
-            printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s MB |\n' \
-                "$r_provider" "$r_runner" "$r_cpu" "$r_stddev" "$r_proc" "$r_vcpus" "$r_ram"
+        | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_cpu_sd r_mem r_mem_sd r_proc r_vcpus r_ram; do
+            # Format memory column: show "—" if no memory data (value is 0)
+            if [[ "$r_mem" == "0" ]]; then
+                mem_display="—"
+                mem_sd_display="—"
+            else
+                mem_display="${r_mem} MiB/sec"
+                mem_sd_display="±${r_mem_sd}"
+            fi
+            printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s MB |\n' \
+                "$r_provider" "$r_runner" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
           done >> "$SUMMARY_FILE"
 fi
 

@@ -11,10 +11,16 @@ cpu_max_prime: 20000
 cpu_warmup: true
 # Note: threads fixed at 1 for single-core comparison across providers.
 
+# --- Memory Benchmark ---
+memory_enabled: true
+memory_iterations: 5
+memory_block_size: 1K
+memory_total_size: 10G
+memory_warmup: true
+# Note: threads fixed at 1 for single-core comparison across providers.
+
 # --- Future Benchmarks ---
 # disk_enabled: false
 # disk_tool: fio
-# memory_enabled: false
-# memory_tool: sysbench
 # network_enabled: false
 # network_tool: iperf3
