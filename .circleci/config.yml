@@ -37,7 +37,7 @@ jobs:
       - run:
           name: Commit and push results
           command: |
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/fairendo/toolevaluatin.git"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/FairEndo/toolevaluatin.git"
             git config user.name "CI Benchmark Bot"
             git config user.email "ci-benchmark-bot@users.noreply.github.com"
             git add results/
