@@ -28,17 +28,11 @@ jobs:
           command: sudo apt-get update && sudo apt-get install -y sysbench jq
 
       - run:
-          name: Make scripts executable
-          command: |
-            chmod +x benchmarks/run.sh
-            chmod +x benchmarks/lib/cpu.sh
-
-      - run:
           name: Run benchmark
           environment:
             CI_BENCH_PROVIDER: circleci
             CI_BENCH_RUNNER: medium
-          command: ./benchmarks/run.sh
+          command: bash benchmarks/run.sh
 
       - run:
           name: Commit and push results

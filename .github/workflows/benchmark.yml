@@ -22,16 +22,11 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y sysbench jq
 
-      - name: Make scripts executable
-        run: |
-          chmod +x benchmarks/run.sh
-          chmod +x benchmarks/lib/cpu.sh
-
       - name: Run benchmark
         env:
           CI_BENCH_PROVIDER: github-actions
           CI_BENCH_RUNNER: ${{ github.event.inputs.runner }}
-        run: ./benchmarks/run.sh
+        run: bash benchmarks/run.sh
 
       - name: Commit and push results
         run: |

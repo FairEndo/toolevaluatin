@@ -6,11 +6,10 @@
 
 # --- CPU Benchmark ---
 cpu_enabled: true
-cpu_tool: sysbench
 cpu_iterations: 5
 cpu_max_prime: 20000
-cpu_threads: 1
 cpu_warmup: true
+# Note: threads fixed at 1 for single-core comparison across providers.
 
 # --- Future Benchmarks ---
 # disk_enabled: false
