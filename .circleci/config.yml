@@ -1,13 +1,3 @@
-# CircleCI Configuration for CI Benchmark Runner
-#
-# Trigger via API:
-#   curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
-#     -H "Circle-Token: $TOKEN" \
-#     -H "Content-Type: application/json" \
-#     -d '{"parameters": {"run_benchmark": true}}'
-#
-# Note: Requires a user key or deploy key with write access for pushing results.
-
 version: 2.1
 
 parameters:
