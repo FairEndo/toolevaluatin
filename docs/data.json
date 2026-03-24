@@ -1,0 +1,60 @@
+[
+  {
+    "provider": "circleci",
+    "runner": "medium",
+    "timestamp": "2026-03-24T19:58:07Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          418.32,
+          434.58,
+          404.90,
+          437.90,
+          425.14
+        ],
+        "median": 425.14,
+        "min": 404.90,
+        "max": 437.90,
+        "stddev": 11.86,
+        "unit": "events/sec"
+      }
+    },
+    "system": {
+      "processor": "Intel(R) Xeon(R) Platinum 8223CL CPU @ 3.00GHz",
+      "vcpus": 36,
+      "ram_mb": 4096,
+      "load_avg": "10.66, 7.42, 7.75"
+    }
+  },
+  {
+    "provider": "github-actions",
+    "runner": "ubuntu-latest",
+    "timestamp": "2026-03-24T15:57:24Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          1441.71,
+          1440.63,
+          1442.87,
+          1441.30,
+          1440.45
+        ],
+        "median": 1441.30,
+        "min": 1440.45,
+        "max": 1442.87,
+        "stddev": 0.87,
+        "unit": "events/sec"
+      }
+    },
+    "system": {
+      "processor": "AMD EPYC 7763 64-Core Processor",
+      "vcpus": 2,
+      "ram_mb": 7939,
+      "load_avg": "0.43, 0.12, 0.04"
+    }
+  }
+]

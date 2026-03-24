@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CI Benchmark Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-card: #0f3460;
+      --bg-card-alt: #1a1a40;
+      --text-primary: #e0e0e0;
+      --text-secondary: #a0a0b8;
+      --text-heading: #f5f5f5;
+      --border-color: #2a2a4a;
+      --accent: #4361ee;
+      --accent-hover: #5a7bff;
+      --color-blue: #4361ee;
+      --color-orange: #f77f00;
+      --color-green: #2a9d8f;
+      --color-red: #e63946;
+      --color-purple: #9b5de5;
+      --color-yellow: #f4d35e;
+      --color-cyan: #00b4d8;
+      --color-pink: #ff6b9d;
+      --row-even: rgba(67, 97, 238, 0.06);
+      --row-hover: rgba(67, 97, 238, 0.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 32px 20px 24px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .header .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    .header .last-updated {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 14px;
+      background: var(--bg-card);
+      border-radius: 20px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-heading);
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card h2 .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 500;
+      background: var(--accent);
+      color: #fff;
+      padding: 2px 10px;
+      border-radius: 12px;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    /* Table */
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      white-space: nowrap;
+    }
+
+    thead th {
+      background: var(--bg-card);
+      color: var(--text-heading);
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 2px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    thead th:first-child { border-radius: 8px 0 0 0; }
+    thead th:last-child { border-radius: 0 8px 0 0; }
+
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    tbody tr:nth-child(even) {
+      background: var(--row-even);
+    }
+
+    tbody tr:hover {
+      background: var(--row-hover);
+    }
+
+    .score-cell {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .unit {
+      font-weight: 400;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      margin-left: 3px;
+    }
+
+    .stddev {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .na {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    .provider-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: rgba(67, 97, 238, 0.15);
+      color: var(--color-blue);
+    }
+
+    .rank-cell {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-bottom: 28px;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      min-height: 320px;
+    }
+
+    .chart-container canvas {
+      width: 100% !important;
+    }
+
+    /* Loading & Error */
+    .loading-state, .error-state {
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .loading-state {
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-state {
+      color: var(--color-red);
+    }
+
+    .error-state .error-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .error-state .error-msg {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      max-width: 500px;
+      margin: 8px auto 0;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 24px 20px;
+      margin-top: 12px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 1.5rem;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      table {
+        font-size: 0.82rem;
+      }
+
+      thead th, tbody td {
+        padding: 8px 10px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px 10px;
+      }
+
+      .header {
+        padding: 20px 12px 16px;
+        margin-bottom: 20px;
+      }
+
+      .charts-grid {
+        gap: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>CI Benchmark Dashboard</h1>
+      <p class="subtitle">Comparative performance metrics across CI providers and runners</p>
+      <div class="last-updated" id="last-updated"></div>
+    </header>
+
+    <div id="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading benchmark data&hellip;</p>
+    </div>
+
+    <div id="error" class="error-state" style="display:none;">
+      <div class="error-icon">&#9888;</div>
+      <p><strong>Failed to load benchmark data</strong></p>
+      <p class="error-msg" id="error-detail"></p>
+    </div>
+
+    <main id="dashboard" style="display:none;">
+      <!-- Leaderboard Table -->
+      <section class="card" id="leaderboard-section">
+        <h2>Leaderboard <span class="badge" id="leaderboard-count"></span></h2>
+        <div class="table-wrapper">
+          <table id="leaderboard-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Provider</th>
+                <th>Runner</th>
+                <th>CPU Score</th>
+                <th>CPU Stddev</th>
+                <th>Memory Throughput</th>
+                <th>Mem Stddev</th>
+                <th>Processor</th>
+                <th>vCPUs</th>
+                <th>RAM</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Bar Charts -->
+      <div class="charts-grid">
+        <section class="card">
+          <h2>CPU Performance</h2>
+          <div class="chart-container">
+            <canvas id="cpu-bar-chart"></canvas>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Memory Performance</h2>
+          <div class="chart-container">
+            <canvas id="mem-bar-chart"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <!-- Line Chart -->
+      <section class="card">
+        <h2>Performance Over Time</h2>
+        <div class="chart-container" style="min-height: 380px;">
+          <canvas id="timeline-chart"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" id="footer" style="display:none;"></footer>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* Colorblind-friendly palette */
+      const PALETTE = [
+        '#4361ee', '#f77f00', '#2a9d8f', '#e63946',
+        '#9b5de5', '#f4d35e', '#00b4d8', '#ff6b9d'
+      ];
+
+      /* ---- Helpers ---- */
+
+      function comboKey(run) {
+        return run.provider + '|' + run.runner;
+      }
+
+      function fmtNum(n, decimals) {
+        if (n == null) return null;
+        decimals = decimals != null ? decimals : 2;
+        return Number(n).toLocaleString(undefined, {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals
+        });
+      }
+
+      function fmtRAM(mb) {
+        if (mb == null) return '—';
+        if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GiB';
+        return mb + ' MiB';
+      }
+
+      function fmtDate(iso) {
+        var d = new Date(iso);
+        return d.toLocaleDateString(undefined, {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+        });
+      }
+
+      function shortLabel(run) {
+        return run.provider + ' / ' + run.runner;
+      }
+
+      /* Get most recent run per provider+runner */
+      function dedup(runs) {
+        var map = {};
+        runs.forEach(function (r) {
+          var k = comboKey(r);
+          if (!map[k] || new Date(r.timestamp) > new Date(map[k].timestamp)) {
+            map[k] = r;
+          }
+        });
+        return Object.values(map);
+      }
+
+      /* ---- Rendering ---- */
+
+      function renderHeader(runs) {
+        var latest = runs.reduce(function (a, b) {
+          return new Date(a.timestamp) > new Date(b.timestamp) ? a : b;
+        });
+        document.getElementById('last-updated').textContent =
+          'Last updated: ' + fmtDate(latest.timestamp);
+      }
+
+      function renderLeaderboard(latest) {
+        /* Sort by CPU median descending */
+        var sorted = latest.slice().sort(function (a, b) {
+          var aScore = a.benchmarks && a.benchmarks.cpu ? a.benchmarks.cpu.median : 0;
+          var bScore = b.benchmarks && b.benchmarks.cpu ? b.benchmarks.cpu.median : 0;
+          return bScore - aScore;
+        });
+
+        document.getElementById('leaderboard-count').textContent =
+          sorted.length + ' runner' + (sorted.length !== 1 ? 's' : '');
+
+        var tbody = document.getElementById('leaderboard-body');
+        tbody.innerHTML = '';
+
+        sorted.forEach(function (run, i) {
+          var cpu = run.benchmarks && run.benchmarks.cpu ? run.benchmarks.cpu : null;
+          var mem = run.benchmarks && run.benchmarks.memory ? run.benchmarks.memory : null;
+          var sys = run.system || {};
+
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td class="rank-cell">' + (i + 1) + '</td>' +
+            '<td><span class="provider-badge">' + esc(run.provider) + '</span></td>' +
+            '<td>' + esc(run.runner) + '</td>' +
+            '<td class="score-cell">' +
+              (cpu ? fmtNum(cpu.median) + '<span class="unit">' + esc(cpu.unit) + '</span>' : '<span class="na">&mdash;</span>') +
+            '</td>' +
+            '<td class="stddev">' +
+              (cpu ? '&plusmn;' + fmtNum(cpu.stddev) : '<span class="na">&mdash;</span>') +
+            '</td>' +
+            '<td class="score-cell">' +
+              (mem ? fmtNum(mem.median) + '<span class="unit">' + esc(mem.unit) + '</span>' : '<span class="na">&mdash;</span>') +
+            '</td>' +
+            '<td class="stddev">' +
+              (mem ? '&plusmn;' + fmtNum(mem.stddev) : '<span class="na">&mdash;</span>') +
+            '</td>' +
+            '<td>' + esc(sys.processor || '—') + '</td>' +
+            '<td>' + (sys.vcpus != null ? sys.vcpus : '—') + '</td>' +
+            '<td>' + fmtRAM(sys.ram_mb) + '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+
+      function esc(str) {
+        var el = document.createElement('span');
+        el.textContent = str;
+        return el.innerHTML;
+      }
+
+      /* ---- Charts ---- */
+
+      function chartColors(index) {
+        return PALETTE[index % PALETTE.length];
+      }
+
+      function renderCPUBar(latest) {
+        var sorted = latest.slice().sort(function (a, b) {
+          var aS = a.benchmarks && a.benchmarks.cpu ? a.benchmarks.cpu.median : 0;
+          var bS = b.benchmarks && b.benchmarks.cpu ? b.benchmarks.cpu.median : 0;
+          return bS - aS;
+        });
+
+        var labels = [];
+        var medians = [];
+        var mins = [];
+        var maxs = [];
+        var colors = [];
+
+        sorted.forEach(function (run, i) {
+          var cpu = run.benchmarks && run.benchmarks.cpu ? run.benchmarks.cpu : null;
+          labels.push(shortLabel(run));
+          medians.push(cpu ? cpu.median : 0);
+          mins.push(cpu ? cpu.median - cpu.min : 0);
+          maxs.push(cpu ? cpu.max - cpu.median : 0);
+          colors.push(chartColors(i));
+        });
+
+        var ctx = document.getElementById('cpu-bar-chart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'CPU Median (events/sec)',
+              data: medians,
+              backgroundColor: colors.map(function (c) { return c + 'cc'; }),
+              borderColor: colors,
+              borderWidth: 2,
+              borderRadius: 6,
+              errorBars: { mins: mins, maxs: maxs }
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#16213e',
+                titleColor: '#f5f5f5',
+                bodyColor: '#e0e0e0',
+                borderColor: '#2a2a4a',
+                borderWidth: 1,
+                callbacks: {
+                  label: function (ctx) {
+                    var ds = ctx.dataset;
+                    var idx = ctx.dataIndex;
+                    var errMin = ds.errorBars ? ds.errorBars.mins[idx] : 0;
+                    var errMax = ds.errorBars ? ds.errorBars.maxs[idx] : 0;
+                    var val = ctx.parsed.x;
+                    return 'Median: ' + fmtNum(val) +
+                      '  (min: ' + fmtNum(val - errMin) +
+                      ', max: ' + fmtNum(val + errMax) + ')';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#a0a0b8' },
+                title: { display: true, text: 'events/sec', color: '#a0a0b8' }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { color: '#e0e0e0', font: { size: 11 } }
+              }
+            }
+          },
+          plugins: [{
+            id: 'errorBars',
+            afterDraw: function (chart) {
+              var meta = chart.getDatasetMeta(0);
+              var ds = chart.data.datasets[0];
+              if (!ds.errorBars) return;
+              var ctx2 = chart.ctx;
+              ctx2.save();
+              ctx2.strokeStyle = '#e0e0e0';
+              ctx2.lineWidth = 1.5;
+              meta.data.forEach(function (bar, i) {
+                var xScale = chart.scales.x;
+                var median = ds.data[i];
+                var lo = xScale.getPixelForValue(median - ds.errorBars.mins[i]);
+                var hi = xScale.getPixelForValue(median + ds.errorBars.maxs[i]);
+                var y = bar.y;
+                var capH = 6;
+                ctx2.beginPath();
+                ctx2.moveTo(lo, y);
+                ctx2.lineTo(hi, y);
+                ctx2.stroke();
+                ctx2.beginPath();
+                ctx2.moveTo(lo, y - capH);
+                ctx2.lineTo(lo, y + capH);
+                ctx2.stroke();
+                ctx2.beginPath();
+                ctx2.moveTo(hi, y - capH);
+                ctx2.lineTo(hi, y + capH);
+                ctx2.stroke();
+              });
+              ctx2.restore();
+            }
+          }]
+        });
+      }
+
+      function renderMemBar(latest) {
+        /* Filter to those with memory data */
+        var withMem = latest.filter(function (r) {
+          return r.benchmarks && r.benchmarks.memory;
+        });
+
+        if (withMem.length === 0) {
+          var canvas = document.getElementById('mem-bar-chart');
+          var parent = canvas.parentElement;
+          parent.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:60px 0;">No memory benchmark data available.</p>';
+          return;
+        }
+
+        var sorted = withMem.slice().sort(function (a, b) {
+          return b.benchmarks.memory.median - a.benchmarks.memory.median;
+        });
+
+        var labels = [];
+        var medians = [];
+        var mins = [];
+        var maxs = [];
+        var colors = [];
+
+        sorted.forEach(function (run, i) {
+          var mem = run.benchmarks.memory;
+          labels.push(shortLabel(run));
+          medians.push(mem.median);
+          mins.push(mem.median - mem.min);
+          maxs.push(mem.max - mem.median);
+          colors.push(chartColors(i));
+        });
+
+        var ctx = document.getElementById('mem-bar-chart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Memory Median (MiB/sec)',
+              data: medians,
+              backgroundColor: colors.map(function (c) { return c + 'cc'; }),
+              borderColor: colors,
+              borderWidth: 2,
+              borderRadius: 6,
+              errorBars: { mins: mins, maxs: maxs }
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#16213e',
+                titleColor: '#f5f5f5',
+                bodyColor: '#e0e0e0',
+                borderColor: '#2a2a4a',
+                borderWidth: 1,
+                callbacks: {
+                  label: function (ctx) {
+                    var ds = ctx.dataset;
+                    var idx = ctx.dataIndex;
+                    var errMin = ds.errorBars ? ds.errorBars.mins[idx] : 0;
+                    var errMax = ds.errorBars ? ds.errorBars.maxs[idx] : 0;
+                    var val = ctx.parsed.x;
+                    return 'Median: ' + fmtNum(val) +
+                      '  (min: ' + fmtNum(val - errMin) +
+                      ', max: ' + fmtNum(val + errMax) + ')';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#a0a0b8' },
+                title: { display: true, text: 'MiB/sec', color: '#a0a0b8' }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { color: '#e0e0e0', font: { size: 11 } }
+              }
+            }
+          },
+          plugins: [{
+            id: 'errorBarsMem',
+            afterDraw: function (chart) {
+              var meta = chart.getDatasetMeta(0);
+              var ds = chart.data.datasets[0];
+              if (!ds.errorBars) return;
+              var ctx2 = chart.ctx;
+              ctx2.save();
+              ctx2.strokeStyle = '#e0e0e0';
+              ctx2.lineWidth = 1.5;
+              meta.data.forEach(function (bar, i) {
+                var xScale = chart.scales.x;
+                var median = ds.data[i];
+                var lo = xScale.getPixelForValue(median - ds.errorBars.mins[i]);
+                var hi = xScale.getPixelForValue(median + ds.errorBars.maxs[i]);
+                var y = bar.y;
+                var capH = 6;
+                ctx2.beginPath();
+                ctx2.moveTo(lo, y);
+                ctx2.lineTo(hi, y);
+                ctx2.stroke();
+                ctx2.beginPath();
+                ctx2.moveTo(lo, y - capH);
+                ctx2.lineTo(lo, y + capH);
+                ctx2.stroke();
+                ctx2.beginPath();
+                ctx2.moveTo(hi, y - capH);
+                ctx2.lineTo(hi, y + capH);
+                ctx2.stroke();
+              });
+              ctx2.restore();
+            }
+          }]
+        });
+      }
+
+      function renderTimeline(allRuns) {
+        /* Group runs by provider+runner combo */
+        var groups = {};
+        allRuns.forEach(function (run) {
+          var k = comboKey(run);
+          if (!groups[k]) groups[k] = { label: shortLabel(run), runs: [] };
+          groups[k].runs.push(run);
+        });
+
+        /* Sort each group by timestamp */
+        Object.keys(groups).forEach(function (k) {
+          groups[k].runs.sort(function (a, b) {
+            return new Date(a.timestamp) - new Date(b.timestamp);
+          });
+        });
+
+        var datasets = [];
+        var colorIdx = 0;
+        var allKeys = Object.keys(groups).sort();
+
+        allKeys.forEach(function (k) {
+          var g = groups[k];
+          var color = chartColors(colorIdx++);
+          var data = g.runs.map(function (r) {
+            return {
+              x: r.timestamp,
+              y: r.benchmarks && r.benchmarks.cpu ? r.benchmarks.cpu.median : null
+            };
+          }).filter(function (pt) { return pt.y != null; });
+
+          datasets.push({
+            label: g.label,
+            data: data,
+            borderColor: color,
+            backgroundColor: color + '33',
+            pointBackgroundColor: color,
+            pointBorderColor: color,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            tension: 0.3,
+            fill: false,
+            borderWidth: 2.5
+          });
+        });
+
+        var ctx = document.getElementById('timeline-chart').getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: { datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'nearest',
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                labels: { color: '#e0e0e0', usePointStyle: true, padding: 16 }
+              },
+              tooltip: {
+                backgroundColor: '#16213e',
+                titleColor: '#f5f5f5',
+                bodyColor: '#e0e0e0',
+                borderColor: '#2a2a4a',
+                borderWidth: 1,
+                callbacks: {
+                  title: function (items) {
+                    if (items.length > 0) return fmtDate(items[0].raw.x);
+                    return '';
+                  },
+                  label: function (ctx) {
+                    return ctx.dataset.label + ': ' + fmtNum(ctx.parsed.y) + ' events/sec';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  tooltipFormat: 'PPpp',
+                  displayFormats: {
+                    hour: 'MMM d, HH:mm',
+                    day: 'MMM d',
+                    month: 'MMM yyyy'
+                  }
+                },
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#a0a0b8', maxRotation: 45 },
+                title: { display: true, text: 'Date', color: '#a0a0b8' }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                ticks: { color: '#a0a0b8' },
+                title: { display: true, text: 'CPU Median (events/sec)', color: '#a0a0b8' }
+              }
+            }
+          }
+        });
+      }
+
+      function renderFooter(allRuns) {
+        var combos = {};
+        allRuns.forEach(function (r) { combos[comboKey(r)] = true; });
+        var n = allRuns.length;
+        var m = Object.keys(combos).length;
+        var footer = document.getElementById('footer');
+        footer.textContent = 'Data from ' + n + ' total run' + (n !== 1 ? 's' : '') +
+          ' across ' + m + ' provider/runner combination' + (m !== 1 ? 's' : '');
+        footer.style.display = '';
+      }
+
+      /* ---- Init ---- */
+
+      function showError(msg) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = '';
+        document.getElementById('error-detail').textContent = msg;
+      }
+
+      function init(allRuns) {
+        if (!Array.isArray(allRuns) || allRuns.length === 0) {
+          showError('data.json is empty or has an unexpected format.');
+          return;
+        }
+
+        var latest = dedup(allRuns);
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = '';
+
+        renderHeader(allRuns);
+        renderLeaderboard(latest);
+        renderCPUBar(latest);
+        renderMemBar(latest);
+        renderTimeline(allRuns);
+        renderFooter(allRuns);
+      }
+
+      /* If Chart.js time scale adapter is not bundled, load the date-fns adapter */
+      function loadTimeAdapter() {
+        return new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3';
+          script.onload = resolve;
+          script.onerror = function () {
+            reject(new Error('Failed to load Chart.js date adapter'));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      /* Boot */
+      loadTimeAdapter()
+        .then(function () {
+          return fetch('data.json');
+        })
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status + ' — could not fetch data.json');
+          return res.json();
+        })
+        .then(init)
+        .catch(function (err) {
+          console.error(err);
+          showError(err.message || 'An unknown error occurred while loading data.');
+        });
+    })();
+  </script>
+</body>
+</html>

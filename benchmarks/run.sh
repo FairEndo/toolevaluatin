@@ -439,4 +439,22 @@ TOTAL_RUNS=$(find "$RAW_DIR" -name '*.json' -type f 2>/dev/null | wc -l | xargs)
 } >> "$SUMMARY_FILE"
 
 log "  Summary written to ${SUMMARY_FILE}"
+
+# ---------------------------------------------------------------------------
+# Generate docs/data.json for the dashboard
+# ---------------------------------------------------------------------------
+log "Generating dashboard data..."
+
+DOCS_DIR="${PROJECT_ROOT}/docs"
+mkdir -p "$DOCS_DIR"
+
+# Consolidate all raw JSON files into a single array, sorted by timestamp descending
+if compgen -G "${RAW_DIR}/*.json" > /dev/null; then
+    jq -s 'sort_by(.timestamp) | reverse' "${RAW_DIR}"/*.json > "${DOCS_DIR}/data.json"
+    log "  Dashboard data written to ${DOCS_DIR}/data.json"
+else
+    echo '[]' > "${DOCS_DIR}/data.json"
+    log "  No raw data found — wrote empty array to ${DOCS_DIR}/data.json"
+fi
+
 log "Done."

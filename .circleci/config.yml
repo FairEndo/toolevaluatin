@@ -40,7 +40,7 @@ jobs:
             git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/FairEndo/toolevaluatin.git"
             git config user.name "CI Benchmark Bot"
             git config user.email "ci-benchmark-bot@users.noreply.github.com"
-            git add results/
+            git add results/ docs/
             git commit -m "benchmark: CircleCI (medium) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
               echo "Nothing to commit"
               exit 0
