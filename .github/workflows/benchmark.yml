@@ -1,0 +1,55 @@
+name: CI Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner to use for the benchmark"
+        required: true
+        default: "ubuntu-latest"
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    runs-on: ${{ github.event.inputs.runner }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y sysbench jq
+
+      - name: Make scripts executable
+        run: |
+          chmod +x benchmarks/run.sh
+          chmod +x benchmarks/lib/cpu.sh
+
+      - name: Run benchmark
+        env:
+          CI_BENCH_PROVIDER: github-actions
+          CI_BENCH_RUNNER: ${{ github.event.inputs.runner }}
+        run: ./benchmarks/run.sh
+
+      - name: Commit and push results
+        run: |
+          git config user.name "CI Benchmark Bot"
+          git config user.email "ci-benchmark-bot@users.noreply.github.com"
+          git add results/
+          git commit -m "benchmark: GitHub Actions (${{ github.event.inputs.runner }}) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
+            echo "Nothing to commit"
+            exit 0
+          }
+          # Retry loop to handle concurrent pushes
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Push succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Push failed (attempt $attempt/3), pulling and retrying..."
+            git pull --rebase
+          done
+          echo "Push failed after 3 attempts"
+          exit 1

@@ -1,0 +1,21 @@
+# CI Benchmark Configuration
+#
+# Flat key-value format for simple shell parsing.
+# Override any value at runtime with env vars (prefixed CI_BENCH_).
+# See README.md for details.
+
+# --- CPU Benchmark ---
+cpu_enabled: true
+cpu_tool: sysbench
+cpu_iterations: 5
+cpu_max_prime: 20000
+cpu_threads: 1
+cpu_warmup: true
+
+# --- Future Benchmarks ---
+# disk_enabled: false
+# disk_tool: fio
+# memory_enabled: false
+# memory_tool: sysbench
+# network_enabled: false
+# network_tool: iperf3

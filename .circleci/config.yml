@@ -1,0 +1,68 @@
+# CircleCI Configuration for CI Benchmark Runner
+#
+# Trigger via API:
+#   curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
+#     -H "Circle-Token: $TOKEN" \
+#     -H "Content-Type: application/json" \
+#     -d '{"parameters": {"run_benchmark": true}}'
+#
+# Note: Requires a user key or deploy key with write access for pushing results.
+
+version: 2.1
+
+parameters:
+  run_benchmark:
+    type: boolean
+    default: false
+
+jobs:
+  benchmark:
+    docker:
+      - image: cimg/base:current
+    resource_class: medium
+    steps:
+      - checkout
+
+      - run:
+          name: Install dependencies
+          command: sudo apt-get update && sudo apt-get install -y sysbench jq
+
+      - run:
+          name: Make scripts executable
+          command: |
+            chmod +x benchmarks/run.sh
+            chmod +x benchmarks/lib/cpu.sh
+
+      - run:
+          name: Run benchmark
+          environment:
+            CI_BENCH_PROVIDER: circleci
+            CI_BENCH_RUNNER: medium
+          command: ./benchmarks/run.sh
+
+      - run:
+          name: Commit and push results
+          command: |
+            git config user.name "CI Benchmark Bot"
+            git config user.email "ci-benchmark-bot@users.noreply.github.com"
+            git add results/
+            git commit -m "benchmark: CircleCI (medium) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
+              echo "Nothing to commit"
+              exit 0
+            }
+            for attempt in 1 2 3; do
+              if git push origin "$CIRCLE_BRANCH"; then
+                echo "Push succeeded on attempt $attempt"
+                exit 0
+              fi
+              echo "Push failed (attempt $attempt/3), pulling and retrying..."
+              git pull --rebase origin "$CIRCLE_BRANCH"
+            done
+            echo "Push failed after 3 attempts"
+            exit 1
+
+workflows:
+  run-benchmarks:
+    when: << pipeline.parameters.run_benchmark >>
+    jobs:
+      - benchmark
