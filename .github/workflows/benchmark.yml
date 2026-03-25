@@ -71,9 +71,9 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04
           - ubuntu-22.04
-          - ubuntu-latest-4-cores
-          - ubuntu-latest-8-cores
-          - ubuntu-latest-16-cores
+          # - ubuntu-latest-4-cores   # Requires org-provisioned larger runner
+          # - ubuntu-latest-8-cores   # Requires org-provisioned larger runner
+          # - ubuntu-latest-16-cores  # Requires org-provisioned larger runner
           - macos-latest
           - macos-13
     runs-on: ${{ matrix.runner }}
