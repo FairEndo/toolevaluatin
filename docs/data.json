@@ -2,13 +2,64 @@
   {
     "provider": "github-actions",
     "runner": "ubuntu-latest",
+    "timestamp": "2026-03-25T00:34:07Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          1293.96,
+          1294.81,
+          1282.69,
+          1294.96,
+          1292.42
+        ],
+        "median": 1293.96,
+        "min": 1282.69,
+        "max": 1294.96,
+        "stddev": 4.63,
+        "unit": "events/sec"
+      },
+      "memory": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          5559.24,
+          5561.08,
+          5560.43,
+          5558.25,
+          5554.40
+        ],
+        "median": 5559.24,
+        "min": 5554.40,
+        "max": 5561.08,
+        "stddev": 2.35,
+        "unit": "MiB/sec"
+      }
+    },
+    "system": {
+      "processor": "AMD EPYC 9V74 80-Core Processor",
+      "vcpus": 4,
+      "ram_mb": 15990,
+      "load_avg": "0.44, 0.11, 0.04"
+    }
+  },
+  {
+    "provider": "github-actions",
+    "runner": "ubuntu-latest",
     "timestamp": "2026-03-24T23:18:32Z",
     "benchmarks": {
       "cpu": {
         "tool": "sysbench",
         "iterations": 5,
-        "scores": [1442.47, 1442.84, 1442.8, 1438.24, 1443.26],
-        "median": 1442.8,
+        "scores": [
+          1442.47,
+          1442.84,
+          1442.80,
+          1438.24,
+          1443.26
+        ],
+        "median": 1442.80,
         "min": 1438.24,
         "max": 1443.26,
         "stddev": 1.86,
@@ -17,7 +68,13 @@
       "memory": {
         "tool": "sysbench",
         "iterations": 5,
-        "scores": [6063.15, 6067.09, 6062.63, 6060.67, 6063.24],
+        "scores": [
+          6063.15,
+          6067.09,
+          6062.63,
+          6060.67,
+          6063.24
+        ],
         "median": 6063.15,
         "min": 6060.67,
         "max": 6067.09,
@@ -40,7 +97,13 @@
       "cpu": {
         "tool": "sysbench",
         "iterations": 5,
-        "scores": [1442.75, 1439.87, 1438.64, 1440.41, 1440.46],
+        "scores": [
+          1442.75,
+          1439.87,
+          1438.64,
+          1440.41,
+          1440.46
+        ],
         "median": 1440.41,
         "min": 1438.64,
         "max": 1442.75,
@@ -50,7 +113,13 @@
       "memory": {
         "tool": "sysbench",
         "iterations": 5,
-        "scores": [6043.49, 6055.42, 6064.71, 5997.35, 6062.82],
+        "scores": [
+          6043.49,
+          6055.42,
+          6064.71,
+          5997.35,
+          6062.82
+        ],
         "median": 6055.42,
         "min": 5997.35,
         "max": 6064.71,
@@ -73,10 +142,16 @@
       "cpu": {
         "tool": "sysbench",
         "iterations": 5,
-        "scores": [418.32, 434.58, 404.9, 437.9, 425.14],
+        "scores": [
+          418.32,
+          434.58,
+          404.90,
+          437.90,
+          425.14
+        ],
         "median": 425.14,
-        "min": 404.9,
-        "max": 437.9,
+        "min": 404.90,
+        "max": 437.90,
         "stddev": 11.86,
         "unit": "events/sec"
       }
@@ -96,8 +171,14 @@
       "cpu": {
         "tool": "sysbench",
         "iterations": 5,
-        "scores": [1441.71, 1440.63, 1442.87, 1441.3, 1440.45],
-        "median": 1441.3,
+        "scores": [
+          1441.71,
+          1440.63,
+          1442.87,
+          1441.30,
+          1440.45
+        ],
+        "median": 1441.30,
         "min": 1440.45,
         "max": 1442.87,
         "stddev": 0.87,
