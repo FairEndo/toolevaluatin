@@ -135,6 +135,15 @@ jobs:
           runner: arm.large
 
 workflows:
+  on-push:
+    when:
+      not: << pipeline.parameters.run_benchmark >>
+    jobs:
+      - benchmark-medium:
+          filters:
+            branches:
+              only: main
+
   run-benchmarks:
     when:
       and:
