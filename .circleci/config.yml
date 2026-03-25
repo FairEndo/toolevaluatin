@@ -1,10 +1,16 @@
 # CircleCI Configuration for CI Benchmark Runner
 #
-# Trigger via API:
+# Trigger via API (medium only):
 #   curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
 #     -H "Circle-Token: $TOKEN" \
 #     -H "Content-Type: application/json" \
 #     -d '{"parameters": {"run_benchmark": true}}'
+#
+# Trigger via API (all resource classes):
+#   curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
+#     -H "Circle-Token: $TOKEN" \
+#     -H "Content-Type: application/json" \
+#     -d '{"parameters": {"run_benchmark": true, "run_all": true}}'
 #
 # Note: Requires a user key or deploy key with write access for pushing results.
 
@@ -14,26 +20,37 @@ parameters:
   run_benchmark:
     type: boolean
     default: false
+  run_all:
+    type: boolean
+    default: false
 
-jobs:
-  benchmark:
-    docker:
-      - image: cimg/base:current
-    resource_class: medium
+commands:
+  install-deps:
+    description: Install benchmark dependencies
     steps:
-      - checkout
-
       - run:
           name: Install dependencies
           command: sudo apt-get update && sudo apt-get install -y sysbench jq
 
+  run-benchmark:
+    description: Run the benchmark script
+    parameters:
+      runner:
+        type: string
+    steps:
       - run:
           name: Run benchmark
           environment:
             CI_BENCH_PROVIDER: circleci
-            CI_BENCH_RUNNER: medium
+            CI_BENCH_RUNNER: << parameters.runner >>
           command: bash benchmarks/run.sh
 
+  commit-and-push-results:
+    description: Commit and push benchmark results
+    parameters:
+      runner:
+        type: string
+    steps:
       - run:
           name: Commit and push results
           command: |
@@ -41,7 +58,7 @@ jobs:
             git config user.name "CI Benchmark Bot"
             git config user.email "ci-benchmark-bot@users.noreply.github.com"
             git add results/ docs/
-            git commit -m "benchmark: CircleCI (medium) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
+            git commit -m "benchmark: CircleCI (<< parameters.runner >>) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
               echo "Nothing to commit"
               exit 0
             }
@@ -56,8 +73,84 @@ jobs:
             echo "Push failed after 3 attempts"
             exit 1
 
+jobs:
+  benchmark-medium:
+    docker:
+      - image: cimg/base:current
+    resource_class: medium
+    steps:
+      - checkout
+      - install-deps
+      - run-benchmark:
+          runner: medium
+      - commit-and-push-results:
+          runner: medium
+
+  benchmark-large:
+    docker:
+      - image: cimg/base:current
+    resource_class: large
+    steps:
+      - checkout
+      - install-deps
+      - run-benchmark:
+          runner: large
+      - commit-and-push-results:
+          runner: large
+
+  benchmark-xlarge:
+    docker:
+      - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+      - checkout
+      - install-deps
+      - run-benchmark:
+          runner: xlarge
+      - commit-and-push-results:
+          runner: xlarge
+
+  benchmark-arm-medium:
+    docker:
+      - image: cimg/base:current
+    resource_class: arm.medium
+    steps:
+      - checkout
+      - install-deps
+      - run-benchmark:
+          runner: arm.medium
+      - commit-and-push-results:
+          runner: arm.medium
+
+  benchmark-arm-large:
+    docker:
+      - image: cimg/base:current
+    resource_class: arm.large
+    steps:
+      - checkout
+      - install-deps
+      - run-benchmark:
+          runner: arm.large
+      - commit-and-push-results:
+          runner: arm.large
+
 workflows:
   run-benchmarks:
-    when: << pipeline.parameters.run_benchmark >>
+    when:
+      and:
+        - << pipeline.parameters.run_benchmark >>
+        - not: << pipeline.parameters.run_all >>
     jobs:
-      - benchmark
+      - benchmark-medium
+
+  run-all-benchmarks:
+    when:
+      and:
+        - << pipeline.parameters.run_benchmark >>
+        - << pipeline.parameters.run_all >>
+    jobs:
+      - benchmark-medium
+      - benchmark-large
+      - benchmark-xlarge
+      - benchmark-arm-medium
+      - benchmark-arm-large

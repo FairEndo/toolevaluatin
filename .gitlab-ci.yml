@@ -1,0 +1,129 @@
+# GitLab CI Configuration for CI Benchmark Runner
+#
+# GitHub is the VCS — GitLab is used purely as a CI runner.
+# This pipeline runs sysbench benchmarks on various GitLab SaaS runner
+# sizes and pushes results back to the GitHub repository.
+#
+# ── Triggering ──────────────────────────────────────────────────────
+#
+# Via GitLab UI:
+#   Go to Build > Pipelines > Run pipeline. Optionally set the variable
+#   RUN_ALL = "true" to benchmark all runner sizes. Without it, only
+#   benchmark-small runs.
+#
+# Via API (small runner only):
+#   curl -X POST "https://gitlab.com/api/v4/projects/${PROJECT_ID}/trigger/pipeline" \
+#     -F "token=${TRIGGER_TOKEN}" \
+#     -F "ref=main"
+#
+# Via API (all runner sizes):
+#   curl -X POST "https://gitlab.com/api/v4/projects/${PROJECT_ID}/trigger/pipeline" \
+#     -F "token=${TRIGGER_TOKEN}" \
+#     -F "ref=main" \
+#     -F "variables[RUN_ALL]=true"
+#
+# ── Required CI/CD Variables ────────────────────────────────────────
+#
+# GITHUB_TOKEN  — A GitHub PAT (or fine-grained token) with push access
+#                 to the repository. Set in GitLab under
+#                 Settings > CI/CD > Variables (masked & protected).
+# ────────────────────────────────────────────────────────────────────
+
+# Only run on manual (web UI) or API triggers — never on push.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "api"
+
+stages:
+  - benchmark
+
+# ── Hidden template job ─────────────────────────────────────────────
+.benchmark:
+  stage: benchmark
+  image: ubuntu:24.04
+  variables:
+    CI_BENCH_PROVIDER: gitlab
+  before_script:
+    - apt-get update && apt-get install -y sysbench jq git
+  script:
+    # Run the benchmark
+    - bash benchmarks/run.sh
+
+    # Configure git for pushing results back to GitHub
+    - git remote set-url origin "https://oauth2:${GITHUB_TOKEN}@github.com/FairEndo/toolevaluatin.git"
+    - git config user.name "CI Benchmark Bot"
+    - git config user.email "ci-benchmark-bot@users.noreply.github.com"
+
+    # Commit and push with retry
+    - git add results/ docs/
+    - |
+      git commit -m "benchmark: GitLab ($CI_BENCH_RUNNER) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
+        echo "Nothing to commit"
+        exit 0
+      }
+      for attempt in 1 2 3; do
+        if git push origin HEAD; then
+          echo "Push succeeded on attempt $attempt"
+          exit 0
+        fi
+        echo "Push failed (attempt $attempt/3), pulling and retrying..."
+        git pull --rebase origin HEAD
+      done
+      echo "Push failed after 3 attempts"
+      exit 1
+
+# ── Concrete jobs ───────────────────────────────────────────────────
+
+benchmark-small:
+  extends: .benchmark
+  tags:
+    - saas-linux-small-amd64
+  variables:
+    CI_BENCH_PROVIDER: gitlab
+    CI_BENCH_RUNNER: small-amd64
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "api"
+
+benchmark-medium:
+  extends: .benchmark
+  tags:
+    - saas-linux-medium-amd64
+  variables:
+    CI_BENCH_PROVIDER: gitlab
+    CI_BENCH_RUNNER: medium-amd64
+  rules:
+    - if: $RUN_ALL == "true"
+
+benchmark-large:
+  extends: .benchmark
+  tags:
+    - saas-linux-large-amd64
+  variables:
+    CI_BENCH_PROVIDER: gitlab
+    CI_BENCH_RUNNER: large-amd64
+  rules:
+    - if: $RUN_ALL == "true"
+
+benchmark-medium-arm:
+  extends: .benchmark
+  tags:
+    - saas-linux-medium-arm64
+  variables:
+    CI_BENCH_PROVIDER: gitlab
+    CI_BENCH_RUNNER: medium-arm64
+  rules:
+    - if: $RUN_ALL == "true"
+
+benchmark-large-arm:
+  extends: .benchmark
+  tags:
+    - saas-linux-large-arm64
+  variables:
+    CI_BENCH_PROVIDER: gitlab
+    CI_BENCH_RUNNER: large-arm64
+  rules:
+    - if: $RUN_ALL == "true"

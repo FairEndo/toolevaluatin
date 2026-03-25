@@ -1,0 +1,42 @@
+# Sync to GitLab Mirror
+#
+# This workflow keeps a GitLab mirror in sync with this GitHub repository
+# so that GitLab CI/CD pipelines can run against the latest code.
+# GitHub remains the source of truth for version control; GitLab is
+# a read-only mirror used exclusively for its CI/CD runners.
+#
+# Required secrets:
+#   GITLAB_PUSH_TOKEN  — A GitLab project or personal access token with
+#                        write_repository scope, used to authenticate the push.
+#
+# Required repository variables (Settings > Secrets and variables > Actions > Variables):
+#   GITLAB_PROJECT_PATH — The GitLab project path, e.g. "username/toolevaluatin".
+#                         Stored as a variable (not a secret) because it is not sensitive.
+
+name: Sync to GitLab
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Push to GitLab mirror
+        run: |
+          git remote add gitlab "https://oauth2:${GITLAB_PUSH_TOKEN}@gitlab.com/${GITLAB_PROJECT_PATH}.git"
+          git push gitlab main --force
+        env:
+          GITLAB_PUSH_TOKEN: ${{ secrets.GITLAB_PUSH_TOKEN }}
+          GITLAB_PROJECT_PATH: ${{ vars.GITLAB_PROJECT_PATH }}

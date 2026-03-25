@@ -6,23 +6,34 @@ on:
   workflow_dispatch:
     inputs:
       runner:
-        description: "Runner to use for the benchmark"
-        required: true
+        description: "Runner to use for the benchmark (single mode)"
+        required: false
         default: "ubuntu-latest"
+      run_matrix:
+        description: "Run benchmarks across all runner types"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
-  benchmark:
+  benchmark-single:
+    if: ${{ !inputs.run_matrix }}
     runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y sysbench jq
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sysbench jq
 
       - name: Run benchmark
         env:
@@ -36,6 +47,61 @@ jobs:
           git config user.email "ci-benchmark-bot@users.noreply.github.com"
           git add results/ docs/
           git commit -m "benchmark: GitHub Actions (${{ github.event.inputs.runner || 'ubuntu-latest' }}) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
+            echo "Nothing to commit"
+            exit 0
+          }
+          # Retry loop to handle concurrent pushes
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Push succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Push failed (attempt $attempt/3), pulling and retrying..."
+            git pull --rebase
+          done
+          echo "Push failed after 3 attempts"
+          exit 1
+
+  benchmark-matrix:
+    if: ${{ inputs.run_matrix }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - ubuntu-24.04
+          - ubuntu-22.04
+          - ubuntu-latest-4-cores
+          - ubuntu-latest-8-cores
+          - ubuntu-latest-16-cores
+          - macos-latest
+          - macos-13
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y sysbench jq
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sysbench jq
+
+      - name: Run benchmark
+        env:
+          CI_BENCH_PROVIDER: github-actions
+          CI_BENCH_RUNNER: ${{ matrix.runner }}
+        run: bash benchmarks/run.sh
+
+      - name: Commit and push results
+        run: |
+          git config user.name "CI Benchmark Bot"
+          git config user.email "ci-benchmark-bot@users.noreply.github.com"
+          git add results/ docs/
+          git commit -m "benchmark: GitHub Actions (${{ matrix.runner }}) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
             echo "Nothing to commit"
             exit 0
           }
