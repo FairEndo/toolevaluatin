@@ -1,0 +1,45 @@
+{
+  "provider": "github-actions",
+  "runner": "macos-latest",
+  "timestamp": "2026-03-25T23:21:16Z",
+  "benchmarks": {
+    "cpu": {
+      "tool": "sysbench",
+      "iterations": 5,
+      "scores": [
+        9903123.19,
+        10159080.09,
+        10165112.71,
+        10086149.93,
+        10150014.92
+      ],
+      "median": 10150014.92,
+      "min": 9903123.19,
+      "max": 10165112.71,
+      "stddev": 98911.26,
+      "unit": "events/sec"
+    },
+    "memory": {
+      "tool": "sysbench",
+      "iterations": 5,
+      "scores": [
+        6329.98,
+        6333.46,
+        6336.00,
+        6276.70,
+        6143.98
+      ],
+      "median": 6329.98,
+      "min": 6143.98,
+      "max": 6336.00,
+      "stddev": 73.38,
+      "unit": "MiB/sec"
+    }
+  },
+  "system": {
+    "processor": "Apple M1 (Virtual)",
+    "vcpus": 3,
+    "ram_mb": 7168,
+    "load_avg": "0.50 1.38 3.89"
+  }
+}
