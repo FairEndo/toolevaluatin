@@ -277,7 +277,8 @@ if [[ "${MEMORY_ENABLED}" == "true" ]]; then
         for (( i = 1; i <= MEMORY_ITERATIONS; i++ )); do
             log "  iteration ${i}/${MEMORY_ITERATIONS}"
             score="$(sysbench memory --memory-block-size="$MEMORY_BLOCK_SIZE" --memory-total-size="$MEMORY_TOTAL_SIZE" --threads=1 run \
-                | grep -oP '[\d.]+(?=\s*MiB/sec)' \
+                | grep -oE '[0-9]+\.?[0-9]*[[:space:]]*MiB/sec' \
+                | grep -oE '[0-9]+\.?[0-9]*' \
                 | head -n1)" || score="0"
             [[ -z "$score" ]] && score="0"
             MEM_SCORES+=("$score")
