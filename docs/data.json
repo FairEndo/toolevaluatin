@@ -1,5 +1,50 @@
 [
   {
+    "provider": "circleci",
+    "runner": "medium",
+    "timestamp": "2026-03-25T23:31:15Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          443.31,
+          449.53,
+          448.79,
+          446.12,
+          448.90
+        ],
+        "median": 448.79,
+        "min": 443.31,
+        "max": 449.53,
+        "stddev": 2.33,
+        "unit": "events/sec"
+      },
+      "memory": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          5716.23,
+          5724.43,
+          5729.02,
+          5723.47,
+          5660.62
+        ],
+        "median": 5723.47,
+        "min": 5660.62,
+        "max": 5729.02,
+        "stddev": 25.40,
+        "unit": "MiB/sec"
+      }
+    },
+    "system": {
+      "processor": "Intel(R) Xeon(R) Platinum 8223CL CPU @ 3.00GHz",
+      "vcpus": 36,
+      "ram_mb": 4096,
+      "load_avg": "7.47, 7.88, 10.29"
+    }
+  },
+  {
     "provider": "github-actions",
     "runner": "macos-latest",
     "timestamp": "2026-03-25T23:21:16Z",
