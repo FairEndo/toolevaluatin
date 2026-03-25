@@ -1,6 +1,6 @@
 # CI Benchmark Results
 
-Last updated: 2026-03-25 23:55:55 UTC
+Last updated: 2026-03-25 23:57:32 UTC
 
 Showing the most recent run per provider/runner combination.
 Full history is available in [`results/raw/`](raw/).
@@ -9,7 +9,7 @@ Full history is available in [`results/raw/`](raw/).
 |----------|--------|--------------------|------------|-----------------|------------|-----------|-------|-----|
 | github-actions | macos-latest | 10150014.92 events/sec | ±98911.26 | 6329.98 MiB/sec | ±73.38 | Apple M1 (Virtual) | 3 | 7168 MB |
 | github-actions | ubuntu-latest | 1443.93 events/sec | ±0.58 | 6075.17 MiB/sec | ±1.87 | AMD EPYC 7763 64-Core Processor | 4 | 15994 MB |
-| circleci | medium | 415.27 events/sec | ±7.24 | 5479.13 MiB/sec | ±186.81 | Intel(R) Xeon(R) Platinum 8223CL CPU @ 3.00GHz | 36 | 4096 MB |
+| circleci | medium | 411.03 events/sec | ±4.88 | 5152.76 MiB/sec | ±64.09 | Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz | 36 | 4096 MB |
 
 ---
-*27 total run(s) recorded.*
+*28 total run(s) recorded.*
