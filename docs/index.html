@@ -115,6 +115,41 @@
                 vertical-align: middle;
             }
 
+            .card .description {
+                font-size: 0.85rem;
+                color: #a0a0b8;
+                margin-top: -10px;
+                margin-bottom: 16px;
+                line-height: 1.5;
+            }
+
+            .metric-defs {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 16px;
+            }
+
+            .metric-def {
+                padding: 12px 16px;
+                background: rgba(255, 255, 255, 0.03);
+                border-radius: 8px;
+                border-left: 3px solid var(--accent);
+            }
+
+            .metric-def dt {
+                font-weight: 600;
+                color: var(--text-heading);
+                font-size: 0.9rem;
+                margin-bottom: 4px;
+            }
+
+            .metric-def dd {
+                font-size: 0.82rem;
+                color: #a0a0b8;
+                margin: 0;
+                line-height: 1.5;
+            }
+
             /* Table */
             .table-wrapper {
                 overflow-x: auto;
@@ -322,6 +357,67 @@
                 <div class="last-updated" id="last-updated"></div>
             </header>
 
+            <section class="card" id="metric-info">
+                <h2>How to Read These Results</h2>
+                <p class="description">
+                    All benchmarks use <strong>sysbench</strong> with a single
+                    thread (<code>--threads=1</code>) to measure single-core
+                    performance — the main bottleneck for most CI workloads.
+                    Each metric runs 5 iterations with a warmup pass; the
+                    <strong>median</strong> is the primary comparison value.
+                </p>
+                <dl class="metric-defs">
+                    <div class="metric-def">
+                        <dt>CPU Score (events/sec) ↑ higher is better</dt>
+                        <dd>
+                            How many prime-number computations (up to 20,000)
+                            one core completes per second. Directly comparable
+                            across all runners.
+                        </dd>
+                    </div>
+                    <div class="metric-def">
+                        <dt>CPU Stddev (±)</dt>
+                        <dd>
+                            Variation across the 5 runs. Low stddev = consistent
+                            performance. High stddev suggests noisy neighbors or
+                            CPU throttling.
+                        </dd>
+                    </div>
+                    <div class="metric-def">
+                        <dt>Memory Throughput (MiB/sec) ↑ higher is better</dt>
+                        <dd>
+                            Single-threaded memory bandwidth — how fast the
+                            runner moves 10 GB of data in 1 KB blocks through
+                            RAM.
+                        </dd>
+                    </div>
+                    <div class="metric-def">
+                        <dt>Queue Time (seconds) ↓ lower is better</dt>
+                        <dd>
+                            Time from pipeline trigger to when the runner picks
+                            up the job. Measures how long you wait for a runner
+                            to become available.
+                        </dd>
+                    </div>
+                    <div class="metric-def">
+                        <dt>Setup Time (seconds) ↓ lower is better</dt>
+                        <dd>
+                            Time from job start to benchmark execution —
+                            includes checkout, dependency installation, and repo
+                            cloning.
+                        </dd>
+                    </div>
+                    <div class="metric-def">
+                        <dt>vCPUs / RAM</dt>
+                        <dd>
+                            Runner hardware specs. Note: benchmarks use only 1
+                            thread, so more vCPUs won't increase scores — it's
+                            measuring core <em>quality</em>, not quantity.
+                        </dd>
+                    </div>
+                </dl>
+            </section>
+
             <div id="loading" class="loading-state">
                 <div class="spinner"></div>
                 <p>Loading benchmark data&hellip;</p>
@@ -340,6 +436,10 @@
                         Leaderboard
                         <span class="badge" id="leaderboard-count"></span>
                     </h2>
+                    <p class="description">
+                        Most recent run per provider/runner combination, ranked
+                        by CPU score.
+                    </p>
                     <div class="table-wrapper">
                         <table id="leaderboard-table">
                             <thead>
@@ -367,12 +467,20 @@
                 <div class="charts-grid">
                     <section class="card">
                         <h2>CPU Performance</h2>
+                        <p class="description">
+                            Single-threaded prime computation — higher bars are
+                            faster cores.
+                        </p>
                         <div class="chart-container">
                             <canvas id="cpu-bar-chart"></canvas>
                         </div>
                     </section>
                     <section class="card">
                         <h2>Memory Performance</h2>
+                        <p class="description">
+                            Single-threaded memory bandwidth — higher bars mean
+                            faster RAM access.
+                        </p>
                         <div class="chart-container">
                             <canvas id="mem-bar-chart"></canvas>
                         </div>
@@ -382,12 +490,20 @@
                 <div class="charts-grid">
                     <section class="card">
                         <h2>Queue Time (seconds)</h2>
+                        <p class="description">
+                            Wait time for a runner — shorter bars mean faster
+                            job pickup.
+                        </p>
                         <div class="chart-container">
                             <canvas id="queue-bar-chart"></canvas>
                         </div>
                     </section>
                     <section class="card">
                         <h2>Setup Time (seconds)</h2>
+                        <p class="description">
+                            Overhead before benchmarks run — shorter bars mean
+                            less CI boilerplate time.
+                        </p>
                         <div class="chart-container">
                             <canvas id="setup-bar-chart"></canvas>
                         </div>
@@ -397,6 +513,10 @@
                 <!-- Line Chart -->
                 <section class="card">
                     <h2>Performance Over Time</h2>
+                    <p class="description">
+                        CPU score trend across all recorded runs — helps
+                        identify performance regressions or improvements.
+                    </p>
                     <div class="chart-container" style="min-height: 380px">
                         <canvas id="timeline-chart"></canvas>
                     </div>
