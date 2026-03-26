@@ -139,6 +139,21 @@ if [[ "$CAN_PARSE" == true ]]; then
   fi
 
   # -------------------------------------------------------------------------
+  # g2. OS info (soft check — older results may not have these)
+  # -------------------------------------------------------------------------
+  sys_os=$(jq_raw '.system.os // empty')
+  if [[ -z "$sys_os" || "$sys_os" == "null" ]]; then
+    WARNINGS+=(".system.os is missing — older result file?")
+    warn ".system.os is missing (may be an older result file)"
+  fi
+
+  sys_arch=$(jq_raw '.system.arch // empty')
+  if [[ -z "$sys_arch" || "$sys_arch" == "null" ]]; then
+    WARNINGS+=(".system.arch is missing — older result file?")
+    warn ".system.arch is missing (may be an older result file)"
+  fi
+
+  # -------------------------------------------------------------------------
   # h. At least one benchmark present
   # -------------------------------------------------------------------------
   bench_key_count=$(jq_raw '.benchmarks | if type == "object" then keys | length else 0 end')

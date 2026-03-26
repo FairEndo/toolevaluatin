@@ -244,6 +244,25 @@ log "  vcpus     = ${VCPUS}"
 log "  ram_mb    = ${RAM_MB}"
 log "  load_avg  = ${LOAD_AVG}"
 
+# OS name and version
+if [[ -f /etc/os-release ]]; then
+    OS_NAME="$(. /etc/os-release && echo "${NAME:-Linux}")"
+    OS_VERSION="$(. /etc/os-release && echo "${PRETTY_NAME:-unknown}")"
+elif [[ "$(uname)" == "Darwin" ]]; then
+    OS_NAME="macOS"
+    OS_VERSION="macOS $(sw_vers -productVersion 2>/dev/null || echo 'unknown')"
+else
+    OS_NAME="$(uname -s)"
+    OS_VERSION="unknown"
+fi
+
+# Architecture
+ARCH="$(uname -m 2>/dev/null || echo 'unknown')"
+
+log "  os_name   = ${OS_NAME}"
+log "  os_version= ${OS_VERSION}"
+log "  arch      = ${ARCH}"
+
 # ---------------------------------------------------------------------------
 # Prepare output directories
 # ---------------------------------------------------------------------------
@@ -471,6 +490,9 @@ jq -n \
     --argjson vcpus  "$VCPUS" \
     --argjson ram_mb "$RAM_MB" \
     --arg load_avg   "$LOAD_AVG" \
+    --arg os_name     "$OS_NAME" \
+    --arg os_version  "$OS_VERSION" \
+    --arg arch        "$ARCH" \
     --arg trigger_time      "${TRIGGER_TIME:-null}" \
     --arg job_started_at    "${JOB_STARTED_AT:-null}" \
     --arg bench_started_at  "$BENCH_STARTED_AT" \
@@ -491,6 +513,9 @@ jq -n \
             "total_seconds":    $total_secs
         },
         "system": {
+            "os":        $os_name,
+            "os_version": $os_version,
+            "arch":      $arch,
             "processor": $processor,
             "vcpus":     $vcpus,
             "ram_mb":    $ram_mb,
@@ -529,8 +554,8 @@ SUMMARY_FILE="${RESULTS_DIR}/summary.md"
     echo "Showing the most recent run per provider/runner combination."
     echo "Full history is available in [\`results/raw/\`](raw/)."
     echo ""
-    echo "| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Processor | vCPUs | RAM |"
-    echo "|----------|--------|--------------------|------------|-----------------|------------|-------------------|-------------|-----------|-------|-----|"
+    echo "| Provider | Runner | OS | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Processor | vCPUs | RAM |"
+    echo "|----------|--------|----|--------------------|------------|-----------------|------------|-------------------|-------------|-----------|-------|-----|"
 } > "$SUMMARY_FILE"
 
 # Strategy: emit tab-separated rows with timestamp, then sort to pick the
@@ -543,6 +568,7 @@ for json_file in "${RAW_DIR}"/*.json; do
             .provider // "unknown",
             .runner // "default",
             .timestamp // "1970-01-01T00:00:00Z",
+            (.system.os_version // "unknown"),
             ((.benchmarks.cpu.median // 0) | tostring),
             ((.benchmarks.cpu.stddev // 0) | tostring),
             ((.benchmarks.memory.median // 0) | tostring),
@@ -574,8 +600,8 @@ if [[ -n "$ALL_ROWS" ]]; then
 
     # Sort by CPU median score (field 4) descending, then format as Markdown
     printf '%s\n' "$DEDUPED" \
-        | sort -t$'\t' -k4 -rn \
-        | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_proc r_vcpus r_ram; do
+        | sort -t$'\t' -k5 -rn \
+        | while IFS=$'\t' read -r r_provider r_runner r_ts r_os r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_proc r_vcpus r_ram; do
             # Format memory column: show "—" if no memory data (value is 0)
             if [[ "$r_mem" == "0" ]]; then
                 mem_display="—"
@@ -592,8 +618,8 @@ if [[ -n "$ALL_ROWS" ]]; then
                 disk_display="${r_disk}"
                 disk_sd_display="±${r_disk_sd}"
             fi
-            printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
-                "$r_provider" "$r_runner" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
+            printf '| %s | %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
+                "$r_provider" "$r_runner" "$r_os" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
           done >> "$SUMMARY_FILE"
 fi
 

@@ -447,6 +447,7 @@
                                     <th>#</th>
                                     <th>Provider</th>
                                     <th>Runner</th>
+                                    <th>OS</th>
                                     <th>CPU Score</th>
                                     <th>CPU Stddev</th>
                                     <th>Memory Throughput</th>
@@ -650,6 +651,9 @@
                             "</span></td>" +
                             "<td>" +
                             esc(run.runner) +
+                            "</td>" +
+                            "<td>" +
+                            esc(sys.os_version || sys.os || "—") +
                             "</td>" +
                             '<td class="score-cell">' +
                             (cpu
