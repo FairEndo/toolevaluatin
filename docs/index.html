@@ -351,6 +351,8 @@
                                     <th>CPU Stddev</th>
                                     <th>Memory Throughput</th>
                                     <th>Mem Stddev</th>
+                                    <th>Queue Time</th>
+                                    <th>Setup Time</th>
                                     <th>Processor</th>
                                     <th>vCPUs</th>
                                     <th>RAM</th>
@@ -373,6 +375,21 @@
                         <h2>Memory Performance</h2>
                         <div class="chart-container">
                             <canvas id="mem-bar-chart"></canvas>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="charts-grid">
+                    <section class="card">
+                        <h2>Queue Time (seconds)</h2>
+                        <div class="chart-container">
+                            <canvas id="queue-bar-chart"></canvas>
+                        </div>
+                    </section>
+                    <section class="card">
+                        <h2>Setup Time (seconds)</h2>
+                        <div class="chart-container">
+                            <canvas id="setup-bar-chart"></canvas>
                         </div>
                     </section>
                 </div>
@@ -500,6 +517,7 @@
                             run.benchmarks && run.benchmarks.memory
                                 ? run.benchmarks.memory
                                 : null;
+                        var timing = run.timing || null;
                         var sys = run.system || {};
 
                         var tr = document.createElement("tr");
@@ -537,6 +555,18 @@
                             '<td class="stddev">' +
                             (mem
                                 ? "&plusmn;" + fmtNum(mem.stddev)
+                                : '<span class="na">&mdash;</span>') +
+                            "</td>" +
+                            '<td class="score-cell">' +
+                            (timing && timing.queue_seconds != null
+                                ? timing.queue_seconds +
+                                  '<span class="unit">s</span>'
+                                : '<span class="na">&mdash;</span>') +
+                            "</td>" +
+                            '<td class="score-cell">' +
+                            (timing && timing.setup_seconds != null
+                                ? timing.setup_seconds +
+                                  '<span class="unit">s</span>'
                                 : '<span class="na">&mdash;</span>') +
                             "</td>" +
                             "<td>" +
@@ -867,6 +897,103 @@
                     });
                 }
 
+                function renderTimingBar(canvasId, field, label, latest) {
+                    var sorted = latest.slice().sort(function (a, b) {
+                        var aVal =
+                            a.timing && a.timing[field] != null
+                                ? a.timing[field]
+                                : Infinity;
+                        var bVal =
+                            b.timing && b.timing[field] != null
+                                ? b.timing[field]
+                                : Infinity;
+                        return aVal - bVal;
+                    });
+
+                    var labels = [];
+                    var values = [];
+                    var colors = [];
+                    var borders = [];
+
+                    sorted.forEach(function (run, i) {
+                        var val =
+                            run.timing && run.timing[field] != null
+                                ? run.timing[field]
+                                : null;
+                        if (val == null) return;
+                        labels.push(shortLabel(run));
+                        values.push(val);
+                        var c = chartColors(i);
+                        colors.push(c + "cc");
+                        borders.push(c);
+                    });
+
+                    if (values.length === 0) return;
+
+                    var ctx = document
+                        .getElementById(canvasId)
+                        .getContext("2d");
+                    new Chart(ctx, {
+                        type: "bar",
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: label,
+                                    data: values,
+                                    backgroundColor: colors,
+                                    borderColor: borders,
+                                    borderWidth: 1,
+                                    borderRadius: 6,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: "y",
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: "#16213e",
+                                    titleColor: "#f5f5f5",
+                                    bodyColor: "#e0e0e0",
+                                    borderColor: "#2a2a4a",
+                                    borderWidth: 1,
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            return (
+                                                ctx.dataset.label +
+                                                ": " +
+                                                ctx.parsed.x +
+                                                "s"
+                                            );
+                                        },
+                                    },
+                                },
+                            },
+                            scales: {
+                                x: {
+                                    grid: { color: "rgba(255,255,255,0.06)" },
+                                    ticks: { color: "#a0a0b8" },
+                                    title: {
+                                        display: true,
+                                        text: "Seconds (lower is better)",
+                                        color: "#a0a0b8",
+                                    },
+                                },
+                                y: {
+                                    grid: { display: false },
+                                    ticks: {
+                                        color: "#e0e0e0",
+                                        font: { size: 13 },
+                                    },
+                                },
+                            },
+                        },
+                    });
+                }
+
                 function renderTimeline(allRuns) {
                     /* Group runs by provider+runner combo */
                     var groups = {};
@@ -1047,6 +1174,18 @@
                     renderLeaderboard(latest);
                     renderCPUBar(latest);
                     renderMemBar(latest);
+                    renderTimingBar(
+                        "queue-bar-chart",
+                        "queue_seconds",
+                        "Queue Time",
+                        latest,
+                    );
+                    renderTimingBar(
+                        "setup-bar-chart",
+                        "setup_seconds",
+                        "Setup Time",
+                        latest,
+                    );
                     renderTimeline(allRuns);
                     renderFooter(allRuns);
                 }
