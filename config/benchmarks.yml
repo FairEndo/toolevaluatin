@@ -19,8 +19,14 @@ memory_total_size: 10G
 memory_warmup: true
 # Note: threads fixed at 1 for single-core comparison across providers.
 
+# --- Disk I/O Benchmark ---
+disk_enabled: true
+disk_iterations: 5
+disk_runtime: 5
+disk_warmup: true
+# Note: threads fixed at 1 for single-core comparison across providers.
+# Uses fio with psync ioengine. Direct I/O on Linux only (not supported on macOS).
+
 # --- Future Benchmarks ---
-# disk_enabled: false
-# disk_tool: fio
 # network_enabled: false
 # network_tool: iperf3

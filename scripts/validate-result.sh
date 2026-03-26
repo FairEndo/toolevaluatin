@@ -239,6 +239,55 @@ if [[ "$CAN_PARSE" == true ]]; then
   # -------------------------------------------------------------------------
   validate_benchmark "memory" "MiB/sec"
 
+  # -------------------------------------------------------------------------
+  # k. Disk benchmark validation
+  # -------------------------------------------------------------------------
+  # Disk has a different structure: composite + sub-tests
+  disk_exists=$(jq_raw ".benchmarks.disk != null")
+  if [[ "$disk_exists" == "true" ]]; then
+      log "  Checking .benchmarks.disk ..."
+
+      for sub in composite seq_read seq_write rand_read rand_write; do
+          sub_exists=$(jq_raw ".benchmarks.disk.${sub} != null")
+          if [[ "$sub_exists" != "true" ]]; then
+              fail ".benchmarks.disk.${sub} is missing"
+              continue
+          fi
+
+          # median > 0
+          median_ok=$(jq_raw ".benchmarks.disk.${sub}.median | if type == \"number\" and . > 0 then \"yes\" else \"no\" end")
+          if [[ "$median_ok" != "yes" ]]; then
+              fail ".benchmarks.disk.${sub}.median must be a number > 0"
+          fi
+
+          # scores is non-empty array
+          scores_ok=$(jq_raw ".benchmarks.disk.${sub}.scores | if type == \"array\" and length > 0 then \"yes\" else \"no\" end")
+          if [[ "$scores_ok" != "yes" ]]; then
+              fail ".benchmarks.disk.${sub}.scores must be a non-empty array"
+          fi
+
+          # min <= median <= max
+          ordering_ok=$(jq_raw "
+              .benchmarks.disk.${sub} |
+              if .min != null and .median != null and .max != null
+                 and .min <= .median and .median <= .max
+              then \"yes\" else \"no\" end
+          ")
+          if [[ "$ordering_ok" != "yes" ]]; then
+              min_v=$(jq_raw ".benchmarks.disk.${sub}.min // \"null\"")
+              median_v=$(jq_raw ".benchmarks.disk.${sub}.median // \"null\"")
+              max_v=$(jq_raw ".benchmarks.disk.${sub}.max // \"null\"")
+              fail ".benchmarks.disk.${sub}: ordering violation — min (${min_v}) <= median (${median_v}) <= max (${max_v}) does not hold"
+          fi
+
+          # stddev >= 0
+          stddev_ok=$(jq_raw ".benchmarks.disk.${sub}.stddev | if type == \"number\" and . >= 0 then \"yes\" else \"no\" end")
+          if [[ "$stddev_ok" != "yes" ]]; then
+              fail ".benchmarks.disk.${sub}.stddev must be a number >= 0"
+          fi
+      done
+  fi
+
 fi
 # End of parseable-JSON checks
 
@@ -271,9 +320,11 @@ if [[ "$CAN_PARSE" == true ]]; then
 
   cpu_median=$(jq_raw '.benchmarks.cpu.median // empty' 2>/dev/null || true)
   mem_median=$(jq_raw '.benchmarks.memory.median // empty' 2>/dev/null || true)
+  disk_median=$(jq_raw '.benchmarks.disk.composite.median // empty' 2>/dev/null || true)
 
   [[ -n "$cpu_median" ]]  && summary_parts+=("cpu_median=${cpu_median}")
   [[ -n "$mem_median" ]]  && summary_parts+=("mem_median=${mem_median}")
+  [[ -n "$disk_median" ]] && summary_parts+=("disk_composite_median=${disk_median}")
 fi
 
 log "Validation PASSED (${summary_parts[*]:-no details})"

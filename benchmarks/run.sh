@@ -146,6 +146,10 @@ if [[ -f "$CONFIG_FILE" ]]; then
     CFG_MEMORY_BLOCK_SIZE="$(yaml_get "$CONFIG_FILE" "memory_block_size" "1K")"
     CFG_MEMORY_TOTAL_SIZE="$(yaml_get "$CONFIG_FILE" "memory_total_size" "10G")"
     CFG_MEMORY_WARMUP="$(yaml_get     "$CONFIG_FILE" "memory_warmup"     "true")"
+    CFG_DISK_ENABLED="$(yaml_get      "$CONFIG_FILE" "disk_enabled"      "true")"
+    CFG_DISK_ITERATIONS="$(yaml_get   "$CONFIG_FILE" "disk_iterations"   "5")"
+    CFG_DISK_RUNTIME="$(yaml_get      "$CONFIG_FILE" "disk_runtime"      "5")"
+    CFG_DISK_WARMUP="$(yaml_get       "$CONFIG_FILE" "disk_warmup"       "true")"
 else
     log "  Config file not found — using defaults"
     CFG_CPU_ENABLED="true"
@@ -157,6 +161,10 @@ else
     CFG_MEMORY_BLOCK_SIZE="1K"
     CFG_MEMORY_TOTAL_SIZE="10G"
     CFG_MEMORY_WARMUP="true"
+    CFG_DISK_ENABLED="true"
+    CFG_DISK_ITERATIONS="5"
+    CFG_DISK_RUNTIME="5"
+    CFG_DISK_WARMUP="true"
 fi
 
 # Environment variable overrides take precedence
@@ -169,6 +177,10 @@ MEMORY_ITERATIONS="${CI_BENCH_MEMORY_ITERATIONS:-$CFG_MEMORY_ITERATIONS}"
 MEMORY_BLOCK_SIZE="${CI_BENCH_MEMORY_BLOCK_SIZE:-$CFG_MEMORY_BLOCK_SIZE}"
 MEMORY_TOTAL_SIZE="${CI_BENCH_MEMORY_TOTAL_SIZE:-$CFG_MEMORY_TOTAL_SIZE}"
 MEMORY_WARMUP="${CI_BENCH_MEMORY_WARMUP:-$CFG_MEMORY_WARMUP}"
+DISK_ENABLED="${CI_BENCH_DISK_ENABLED:-$CFG_DISK_ENABLED}"
+DISK_ITERATIONS="${CI_BENCH_DISK_ITERATIONS:-$CFG_DISK_ITERATIONS}"
+DISK_RUNTIME="${CI_BENCH_DISK_RUNTIME:-$CFG_DISK_RUNTIME}"
+DISK_WARMUP="${CI_BENCH_DISK_WARMUP:-$CFG_DISK_WARMUP}"
 PROVIDER="${CI_BENCH_PROVIDER:-unknown}"
 RUNNER="${CI_BENCH_RUNNER:-default}"
 
@@ -183,6 +195,10 @@ log "  memory_iterations  = ${MEMORY_ITERATIONS}"
 log "  memory_block_size  = ${MEMORY_BLOCK_SIZE}"
 log "  memory_total_size  = ${MEMORY_TOTAL_SIZE}"
 log "  memory_warmup      = ${MEMORY_WARMUP}"
+log "  disk_enabled       = ${DISK_ENABLED}"
+log "  disk_iterations    = ${DISK_ITERATIONS}"
+log "  disk_runtime       = ${DISK_RUNTIME}"
+log "  disk_warmup        = ${DISK_WARMUP}"
 
 # ---------------------------------------------------------------------------
 # Collect system information
@@ -405,6 +421,40 @@ else
     log "Memory benchmark is disabled — skipping"
 fi
 
+# --- Disk benchmark -------------------------------------------------------
+if [[ "${DISK_ENABLED}" == "true" ]]; then
+    log "Running disk benchmark..."
+    DISK_START=$(timer_start)
+
+    DISK_SCRIPT="${LIB_DIR}/disk.sh"
+    DISK_JSON=""
+
+    if [[ -f "$DISK_SCRIPT" ]]; then
+        # Delegate to the library script (call with bash to avoid executable-bit issues).
+        # disk.sh <iterations> <runtime> <warmup>
+        # Stdout = JSON result, stderr = progress messages (shown in CI logs).
+        debug_log "Calling: bash $DISK_SCRIPT $DISK_ITERATIONS $DISK_RUNTIME $DISK_WARMUP"
+        DISK_JSON="$(bash "$DISK_SCRIPT" "$DISK_ITERATIONS" "$DISK_RUNTIME" "$DISK_WARMUP")" || {
+            log "  WARNING: disk.sh failed"
+            DISK_JSON=""
+        }
+    else
+        log "  WARNING: benchmarks/lib/disk.sh not found — skipping disk benchmark"
+    fi
+
+    if [[ -n "$DISK_JSON" ]]; then
+        MEDIAN="$(echo "$DISK_JSON" | jq '.composite.median')"
+        STDDEV="$(echo "$DISK_JSON" | jq '.composite.stddev')"
+        log "  composite median = ${MEDIAN} (stddev: ${STDDEV})"
+        BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson disk "$DISK_JSON" '. + { "disk": $disk }')"
+    fi
+
+    DISK_ELAPSED=$(timer_elapsed "$DISK_START")
+    log "  Disk benchmark completed in ${DISK_ELAPSED}s"
+else
+    log "Disk benchmark is disabled — skipping"
+fi
+
 # ---------------------------------------------------------------------------
 # Build final JSON result
 # ---------------------------------------------------------------------------
@@ -479,8 +529,8 @@ SUMMARY_FILE="${RESULTS_DIR}/summary.md"
     echo "Showing the most recent run per provider/runner combination."
     echo "Full history is available in [\`results/raw/\`](raw/)."
     echo ""
-    echo "| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Processor | vCPUs | RAM |"
-    echo "|----------|--------|--------------------|------------|-----------------|------------|-----------|-------|-----|"
+    echo "| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Processor | vCPUs | RAM |"
+    echo "|----------|--------|--------------------|------------|-----------------|------------|-------------------|-------------|-----------|-------|-----|"
 } > "$SUMMARY_FILE"
 
 # Strategy: emit tab-separated rows with timestamp, then sort to pick the
@@ -497,6 +547,8 @@ for json_file in "${RAW_DIR}"/*.json; do
             ((.benchmarks.cpu.stddev // 0) | tostring),
             ((.benchmarks.memory.median // 0) | tostring),
             ((.benchmarks.memory.stddev // 0) | tostring),
+            ((.benchmarks.disk.composite.median // 0) | tostring),
+            ((.benchmarks.disk.composite.stddev // 0) | tostring),
             .system.processor // "unknown",
             ((.system.vcpus // 0) | tostring),
             ((.system.ram_mb // 0) | tostring)
@@ -523,7 +575,7 @@ if [[ -n "$ALL_ROWS" ]]; then
     # Sort by CPU median score (field 4) descending, then format as Markdown
     printf '%s\n' "$DEDUPED" \
         | sort -t$'\t' -k4 -rn \
-        | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_cpu_sd r_mem r_mem_sd r_proc r_vcpus r_ram; do
+        | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_proc r_vcpus r_ram; do
             # Format memory column: show "—" if no memory data (value is 0)
             if [[ "$r_mem" == "0" ]]; then
                 mem_display="—"
@@ -532,8 +584,16 @@ if [[ -n "$ALL_ROWS" ]]; then
                 mem_display="${r_mem} MiB/sec"
                 mem_sd_display="±${r_mem_sd}"
             fi
-            printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s MB |\n' \
-                "$r_provider" "$r_runner" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
+            # Format disk column: show "—" if no disk data (value is 0)
+            if [[ "$r_disk" == "0" ]]; then
+                disk_display="—"
+                disk_sd_display="—"
+            else
+                disk_display="${r_disk}"
+                disk_sd_display="±${r_disk_sd}"
+            fi
+            printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
+                "$r_provider" "$r_runner" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
           done >> "$SUMMARY_FILE"
 fi
 

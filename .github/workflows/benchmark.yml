@@ -36,11 +36,11 @@ jobs:
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y sysbench jq
+        run: sudo apt-get update && sudo apt-get install -y sysbench jq fio
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install sysbench jq
+        run: brew install sysbench jq fio
 
       - name: Fetch pipeline trigger time
         env:
