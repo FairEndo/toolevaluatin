@@ -42,7 +42,7 @@ curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
   -d '{"parameters": {"run_benchmark": true, "run_all": true}}'
 ```
 
-> **Note:** CircleCI requires a user key or deploy key with write access to push results back to the repo.
+> **Note:** CircleCI requires a `RESULTS_REPO_TOKEN` environment variable with push access to the results repository.
 
 ### GitLab CI
 
@@ -69,7 +69,7 @@ Or via API:
       -F "ref=main" \
       -F "variables[RUN_ALL]=true"
 
-> **Note:** GitLab requires a `GITHUB_TOKEN` CI/CD variable with push access to push results back to GitHub. Larger runners and ARM runners require a GitLab Premium or Ultimate plan.
+> **Note:** GitLab requires a `RESULTS_REPO_TOKEN` CI/CD variable with push access to the results repository. Larger runners and ARM runners require a GitLab Premium or Ultimate plan.
 
 ## Supported Runners
 
@@ -121,15 +121,15 @@ All CI configs are thin wrappers that call a single script:
 3. **`run.sh` reads config** from `config/benchmarks.yml`
 4. **Warmup** — one throwaway iteration to stabilize CPU frequency/caches
 5. **Benchmarks execute** — 5 measured iterations (default), collecting median, min, max, and stddev
-6. **Results are saved** as JSON to `results/raw/` and a summary is generated at `results/summary.md`
-7. **CI commits and pushes** the results back to the repo
+6. **Results are saved** as JSON to `results/raw/` and a summary is generated at `results/summary.md` in the **results repository**
+7. **CI commits and pushes** the results to a separate `ci-benchmark-results` repository
 
 ## Adding a New CI Provider
 
 1. Create a new CI config file that:
    - Installs `sysbench` and `jq`
    - Runs `./benchmarks/run.sh` with `CI_BENCH_PROVIDER` and `CI_BENCH_RUNNER` env vars
-   - Commits and pushes `results/`
+   - Clones the results repo, sets `CI_BENCH_RESULTS_DIR`, and pushes results to it
 2. That's it — no benchmark logic changes needed.
 
 ## Configuration
@@ -142,6 +142,7 @@ Override per-run via environment variables:
 |---|---|---|
 | `CI_BENCH_PROVIDER` | Provider name for results labeling | `unknown` |
 | `CI_BENCH_RUNNER` | Runner name for results labeling | `default` |
+| `CI_BENCH_RESULTS_DIR` | Path to external results repository clone | (writes to benchmarking repo) |
 | `CI_BENCH_CPU_ENABLED` | Enable/disable CPU benchmark | `true` |
 | `CI_BENCH_ITERATIONS` | Number of measured iterations (CPU) | `5` |
 | `CI_BENCH_CPU_MAX_PRIME` | Sysbench cpu-max-prime parameter | `20000` |
@@ -151,6 +152,22 @@ Override per-run via environment variables:
 | `CI_BENCH_MEMORY_BLOCK_SIZE` | Sysbench memory-block-size parameter | `1K` |
 | `CI_BENCH_MEMORY_TOTAL_SIZE` | Sysbench memory-total-size parameter | `10G` |
 | `CI_BENCH_MEMORY_WARMUP` | Run a warmup iteration before measuring (memory) | `true` |
+
+## Results Repository Setup
+
+Benchmark results are stored in a separate GitHub repository to keep this repo focused on benchmark logic and CI configuration.
+
+### Setup
+
+1. Create a new GitHub repository named `ci-benchmark-results` (under the same owner)
+2. Initialize it with a `results/raw/` directory and copy `docs/index.html` from this repo
+3. Create a GitHub Personal Access Token (PAT) with `repo` scope (or fine-grained with push access to the results repo)
+4. Add the token as a secret in each CI provider:
+   - **GitHub Actions**: Add `RESULTS_REPO_TOKEN` as a repository secret
+   - **CircleCI**: Add `RESULTS_REPO_TOKEN` as an environment variable
+   - **GitLab CI**: Add `RESULTS_REPO_TOKEN` as a CI/CD variable (masked & protected)
+
+The results repo name defaults to `{owner}/ci-benchmark-results` but can be overridden via CI environment variables.
 
 ## Workflow Trigger Reference
 
@@ -178,10 +195,12 @@ Override per-run via environment variables:
 
 ## Results
 
-Results are stored in two formats:
+Results are stored in a **separate repository** (`ci-benchmark-results`) in two formats:
 
 - **`results/raw/*.json`** — one file per run, full data including all scores (CPU + memory), system info, and load average
 - **`results/summary.md`** — auto-generated leaderboard showing the most recent run per provider/runner, sorted by CPU score, with memory throughput
+
+The dashboard (`docs/index.html` and `docs/data.json`) also lives in the results repository.
 
 ### Example summary output
 
@@ -204,15 +223,17 @@ Results are stored in two formats:
       lib/memory.sh       Memory benchmark (sysbench)
     config/
       benchmarks.yml      Benchmark configuration (flat key-value)
-    results/
-      raw/                JSON results (one per run)
-      summary.md          Generated summary table (latest per provider)
     .github/workflows/    GitHub Actions config
       benchmark.yml         Single + matrix runner workflows
       sync-gitlab.yml       Pushes main to GitLab mirror
     .circleci/            CircleCI config
       config.yml            Multi-resource-class workflows
     .gitlab-ci.yml          GitLab CI config (5 runner sizes)
+
+    ## Results repository (ci-benchmark-results)
+    results/
+      raw/                JSON results (one per run)
+      summary.md          Generated summary table (latest per provider)
     docs/
       index.html          Dashboard UI
       data.json           Consolidated results for dashboard

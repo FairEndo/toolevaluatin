@@ -6,6 +6,7 @@ Compare CPU performance (and eventually more) across CI providers — **GitHub A
 
 ## Architecture
 
+    ## Benchmarking repo (toolevaluatin)
     .
     ├── PLAN.md
     ├── README.md
@@ -18,22 +19,27 @@ Compare CPU performance (and eventually more) across CI providers — **GitHub A
     │       └── memory.sh            # Memory benchmark logic (sysbench)
     ├── config/
     │   └── benchmarks.yml           # Flat key-value config for benchmarks
+    ├── .github/workflows/
+    │   ├── benchmark.yml            # GitHub Actions (thin wrapper)
+    │   └── sync-gitlab.yml          # Pushes main to GitLab mirror
+    └── .circleci/
+        └── config.yml               # CircleCI (thin wrapper)
+
+    ## Results repo (ci-benchmark-results) — separate repository
+    .
     ├── results/
     │   ├── raw/                     # One JSON file per run (append-only history)
     │   │   └── .gitkeep
     │   └── summary.md               # Auto-generated leaderboard (latest per provider)
-    ├── .github/workflows/
-    │   ├── benchmark.yml            # GitHub Actions (thin wrapper)
-    │   └── sync-gitlab.yml          # Pushes main to GitLab mirror
-    ├── .circleci/
-    │   └── config.yml               # CircleCI (thin wrapper)
     └── docs/
         ├── index.html               # Dashboard UI
         └── data.json                # Consolidated results for dashboard
 
 ### Key Principles
 
-> **CI configs are thin wrappers.** They install dependencies and call `./benchmarks/run.sh`. All benchmark logic lives in the scripts.
+> **CI configs are thin wrappers.** They install dependencies, clone the results repo, and call `./benchmarks/run.sh`. All benchmark logic lives in the scripts.
+
+> **Results live in a separate repo.** The `ci-benchmark-results` repository stores all raw JSON, the summary, and the dashboard. This keeps the benchmarking repo clean and focused on logic. The `CI_BENCH_RESULTS_DIR` env var tells `run.sh` where to write.
 
 > **Config is flat YAML.** Simple `key: value` pairs that can be parsed with grep/sed — no YAML library needed.
 
@@ -95,11 +101,15 @@ Compare CPU performance (and eventually more) across CI providers — **GitHub A
   - Deduplicated: shows only the **most recent** run per (provider, runner) pair
   - Sorted by CPU score descending
   - Includes units (events/sec) and standard deviation (±)
+- **Dashboard**: `docs/index.html` + `docs/data.json` for interactive visualization
+
+All result artifacts live in the **separate `ci-benchmark-results` repository**, not in the benchmarking repo.
 
 ## Configuration
 
 - **Source of truth**: `config/benchmarks.yml` (flat key-value format)
-- **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_CPU_WARMUP`
+- **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_RESULTS_DIR`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_CPU_WARMUP`
+- **`CI_BENCH_RESULTS_DIR`**: When set, `run.sh` writes results and dashboard data to this directory instead of the benchmarking repo. All CI configs set this to a clone of the `ci-benchmark-results` repo.
 
 ## Robustness Features
 
@@ -107,7 +117,7 @@ Compare CPU performance (and eventually more) across CI providers — **GitHub A
 - **5 iterations** with median gives stable signal resistant to outliers
 - **Standard deviation** exposes noisy-neighbor environments
 - **System load recording** helps flag anomalous runs after the fact
-- **Git push retry with rebase** handles concurrent benchmark runs
+- **Git push retry with rebase** handles concurrent benchmark runs (against the results repo)
 - **Graceful fallbacks** — run.sh works even if cpu.sh fails (inline sysbench fallback)
 - **Cross-platform system info** — Linux primary, macOS fallback for local testing
 

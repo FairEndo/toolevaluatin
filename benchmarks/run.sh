@@ -20,6 +20,7 @@ set -euo pipefail
 #   CI_BENCH_MEMORY_BLOCK_SIZE   — sysbench memory-block-size parameter
 #   CI_BENCH_MEMORY_TOTAL_SIZE   — sysbench memory-total-size parameter
 #   CI_BENCH_MEMORY_WARMUP       — "true" / "false"
+#   CI_BENCH_RESULTS_DIR             — path to external results repository root
 ###############################################################################
 
 # ---------------------------------------------------------------------------
@@ -29,13 +30,41 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CONFIG_FILE="${PROJECT_ROOT}/config/benchmarks.yml"
 LIB_DIR="${SCRIPT_DIR}/lib"
-RESULTS_DIR="${PROJECT_ROOT}/results"
-RAW_DIR="${RESULTS_DIR}/raw"
+
+OVERALL_START=$(date +%s)
 
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
-log() { printf '[bench] %s\n' "$*"; }
+log() { printf '[bench] %s %s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$*"; }
+
+# Debug mode: when CI_BENCH_DEBUG=true, emit extra diagnostic output
+CI_BENCH_DEBUG="${CI_BENCH_DEBUG:-false}"
+
+debug_log() {
+  if [[ "$CI_BENCH_DEBUG" == "true" ]]; then
+    log "[DEBUG] $*"
+  fi
+}
+
+# Timer helpers for tracking step durations
+timer_start() { date +%s; }
+timer_elapsed() {
+  local start="$1"
+  local end
+  end=$(date +%s)
+  echo $(( end - start ))
+}
+
+# Results can live outside the benchmarking repo via CI_BENCH_RESULTS_DIR
+if [[ -n "${CI_BENCH_RESULTS_DIR:-}" ]]; then
+    RESULTS_BASE="$(cd "${CI_BENCH_RESULTS_DIR}" && pwd)"
+    log "Using external results directory: ${RESULTS_BASE}"
+else
+    RESULTS_BASE="${PROJECT_ROOT}"
+fi
+RESULTS_DIR="${RESULTS_BASE}/results"
+RAW_DIR="${RESULTS_DIR}/raw"
 
 # Lightweight YAML value reader for flat "key: value" files.
 # Usage: yaml_get <file> <key> [default]
@@ -173,6 +202,7 @@ BENCHMARKS_JSON="{}"
 # --- CPU benchmark --------------------------------------------------------
 if [[ "${CPU_ENABLED}" == "true" ]]; then
     log "Running CPU benchmark..."
+    CPU_START=$(timer_start)
 
     CPU_SCRIPT="${LIB_DIR}/cpu.sh"
     CPU_JSON=""
@@ -181,6 +211,7 @@ if [[ "${CPU_ENABLED}" == "true" ]]; then
         # Delegate to the library script (call with bash to avoid executable-bit issues).
         # cpu.sh <iterations> [cpu_max_prime] [warmup]
         # Stdout = JSON result, stderr = progress messages (shown in CI logs).
+        debug_log "Calling: bash $CPU_SCRIPT $ITERATIONS $CPU_MAX_PRIME $CPU_WARMUP"
         CPU_JSON="$(bash "$CPU_SCRIPT" "$ITERATIONS" "$CPU_MAX_PRIME" "$CPU_WARMUP")" || {
             log "  WARNING: cpu.sh failed — falling back to direct sysbench"
             CPU_JSON=""
@@ -242,6 +273,9 @@ if [[ "${CPU_ENABLED}" == "true" ]]; then
         log "  median = ${MEDIAN} events/sec (stddev: ${STDDEV})"
         BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson cpu "$CPU_JSON" '. + { "cpu": $cpu }')"
     fi
+
+    CPU_ELAPSED=$(timer_elapsed "$CPU_START")
+    log "  CPU benchmark completed in ${CPU_ELAPSED}s"
 else
     log "CPU benchmark is disabled — skipping"
 fi
@@ -249,6 +283,7 @@ fi
 # --- Memory benchmark -----------------------------------------------------
 if [[ "${MEMORY_ENABLED}" == "true" ]]; then
     log "Running memory benchmark..."
+    MEM_START=$(timer_start)
 
     MEMORY_SCRIPT="${LIB_DIR}/memory.sh"
     MEMORY_JSON=""
@@ -257,6 +292,7 @@ if [[ "${MEMORY_ENABLED}" == "true" ]]; then
         # Delegate to the library script (call with bash to avoid executable-bit issues).
         # memory.sh <iterations> [memory_block_size] [memory_total_size] [warmup]
         # Stdout = JSON result, stderr = progress messages (shown in CI logs).
+        debug_log "Calling: bash $MEMORY_SCRIPT $MEMORY_ITERATIONS $MEMORY_BLOCK_SIZE $MEMORY_TOTAL_SIZE $MEMORY_WARMUP"
         MEMORY_JSON="$(bash "$MEMORY_SCRIPT" "$MEMORY_ITERATIONS" "$MEMORY_BLOCK_SIZE" "$MEMORY_TOTAL_SIZE" "$MEMORY_WARMUP")" || {
             log "  WARNING: memory.sh failed — falling back to direct sysbench"
             MEMORY_JSON=""
@@ -320,6 +356,9 @@ if [[ "${MEMORY_ENABLED}" == "true" ]]; then
         log "  median = ${MEDIAN} MiB/sec (stddev: ${STDDEV})"
         BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson memory "$MEMORY_JSON" '. + { "memory": $memory }')"
     fi
+
+    MEM_ELAPSED=$(timer_elapsed "$MEM_START")
+    log "  Memory benchmark completed in ${MEM_ELAPSED}s"
 else
     log "Memory benchmark is disabled — skipping"
 fi
@@ -354,6 +393,17 @@ jq -n \
     }' > "$OUTPUT_FILE"
 
 log "  Result written to ${OUTPUT_FILE}"
+
+# Validate the result file if the validation script exists
+VALIDATE_SCRIPT="${PROJECT_ROOT}/scripts/validate-result.sh"
+if [[ -f "$VALIDATE_SCRIPT" ]]; then
+    log "Validating result file..."
+    if bash "$VALIDATE_SCRIPT" "$OUTPUT_FILE"; then
+        log "  Validation passed"
+    else
+        log "  WARNING: Validation failed — result file may be malformed"
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # Regenerate results/summary.md from all raw JSON files
@@ -446,7 +496,7 @@ log "  Summary written to ${SUMMARY_FILE}"
 # ---------------------------------------------------------------------------
 log "Generating dashboard data..."
 
-DOCS_DIR="${PROJECT_ROOT}/docs"
+DOCS_DIR="${RESULTS_BASE}/docs"
 mkdir -p "$DOCS_DIR"
 
 # Consolidate all raw JSON files into a single array, sorted by timestamp descending
@@ -458,4 +508,5 @@ else
     log "  No raw data found — wrote empty array to ${DOCS_DIR}/data.json"
 fi
 
-log "Done."
+OVERALL_ELAPSED=$(( $(date +%s) - OVERALL_START ))
+log "Done. Total runtime: ${OVERALL_ELAPSED}s"

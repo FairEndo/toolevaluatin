@@ -12,3 +12,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# Benchmark results (stored in a separate ci-benchmark-results repo)
+results/
+docs/data.json

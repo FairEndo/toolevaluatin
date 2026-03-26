@@ -32,6 +32,13 @@ commands:
           name: Install dependencies
           command: sudo apt-get update && sudo apt-get install -y sysbench jq
 
+  clone-results-repo:
+    description: Clone the external results repository
+    steps:
+      - run:
+          name: Clone results repo
+          command: bash scripts/clone-results.sh
+
   run-benchmark:
     description: Run the benchmark script
     parameters:
@@ -43,35 +50,43 @@ commands:
           environment:
             CI_BENCH_PROVIDER: circleci
             CI_BENCH_RUNNER: << parameters.runner >>
+            CI_BENCH_RESULTS_DIR: /tmp/results-repo
           command: bash benchmarks/run.sh
 
   commit-and-push-results:
-    description: Commit and push benchmark results
+    description: Commit and push benchmark results to the results repo
     parameters:
       runner:
         type: string
     steps:
       - run:
-          name: Commit and push results
+          name: Push results
+          command: bash scripts/push-results.sh "circleci" "<< parameters.runner >>"
+
+  run-benchmark-local:
+    description: Run the benchmark script with local output (for artifact collection)
+    parameters:
+      runner:
+        type: string
+    steps:
+      - run:
+          name: Run benchmark (local output)
+          environment:
+            CI_BENCH_PROVIDER: circleci
+            CI_BENCH_RUNNER: << parameters.runner >>
+            CI_BENCH_RESULTS_DIR: /tmp/benchmark-output
           command: |
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/FairEndo/toolevaluatin.git"
-            git config user.name "CI Benchmark Bot"
-            git config user.email "ci-benchmark-bot@users.noreply.github.com"
-            git add results/ docs/
-            git commit -m "benchmark: CircleCI (<< parameters.runner >>) - $(date -u +%Y-%m-%dT%H:%M:%SZ)" || {
-              echo "Nothing to commit"
-              exit 0
-            }
-            for attempt in 1 2 3; do
-              if git push origin HEAD; then
-                echo "Push succeeded on attempt $attempt"
-                exit 0
-              fi
-              echo "Push failed (attempt $attempt/3), pulling and retrying..."
-              git pull --rebase origin HEAD
-            done
-            echo "Push failed after 3 attempts"
-            exit 1
+            mkdir -p /tmp/benchmark-output/results/raw
+            mkdir -p /tmp/benchmark-output/docs
+            bash benchmarks/run.sh
+
+  persist-benchmark-result:
+    description: Persist benchmark result to workspace for collection
+    steps:
+      - persist_to_workspace:
+          root: /tmp/benchmark-output
+          paths:
+            - results/raw/*.json
 
 jobs:
   benchmark-medium:
@@ -81,68 +96,148 @@ jobs:
     steps:
       - checkout
       - install-deps
+      - clone-results-repo
       - run-benchmark:
           runner: medium
       - commit-and-push-results:
           runner: medium
 
-  benchmark-large:
+  benchmark-medium-artifact:
+    docker:
+      - image: cimg/base:current
+    resource_class: medium
+    steps:
+      - checkout
+      - install-deps
+      - run-benchmark-local:
+          runner: medium
+      - persist-benchmark-result
+
+  benchmark-large-artifact:
     docker:
       - image: cimg/base:current
     resource_class: large
     steps:
       - checkout
       - install-deps
-      - run-benchmark:
+      - run-benchmark-local:
           runner: large
-      - commit-and-push-results:
-          runner: large
+      - persist-benchmark-result
 
-  benchmark-xlarge:
+  benchmark-xlarge-artifact:
     docker:
       - image: cimg/base:current
     resource_class: xlarge
     steps:
       - checkout
       - install-deps
-      - run-benchmark:
+      - run-benchmark-local:
           runner: xlarge
-      - commit-and-push-results:
-          runner: xlarge
+      - persist-benchmark-result
 
-  benchmark-arm-medium:
+  benchmark-arm-medium-artifact:
     docker:
       - image: cimg/base:current
     resource_class: arm.medium
     steps:
       - checkout
       - install-deps
-      - run-benchmark:
+      - run-benchmark-local:
           runner: arm.medium
-      - commit-and-push-results:
-          runner: arm.medium
+      - persist-benchmark-result
 
-  benchmark-arm-large:
+  benchmark-arm-large-artifact:
     docker:
       - image: cimg/base:current
     resource_class: arm.large
     steps:
       - checkout
       - install-deps
-      - run-benchmark:
+      - run-benchmark-local:
           runner: arm.large
-      - commit-and-push-results:
-          runner: arm.large
+      - persist-benchmark-result
+
+  collect-results:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install jq
+          command: sudo apt-get update && sudo apt-get install -y jq
+      - attach_workspace:
+          at: /tmp/benchmark-artifacts
+      - run:
+          name: Clone results repo
+          command: bash scripts/clone-results.sh
+      - run:
+          name: Collect and push results
+          command: bash scripts/collect-and-push.sh "/tmp/benchmark-artifacts/results/raw" "circleci" "all"
+
+# ---------------------------------------------------------------
+# Workflow Trigger Model:
+#
+#   1. Tag push of "view-benchmark" → all 5 resource classes
+#      (via tag-all-benchmarks workflow)
+#
+#   2. API with run_benchmark: true → single medium benchmark
+#      (via run-benchmarks workflow)
+#
+#   3. API with run_benchmark: true, run_all: true → all 5 resource classes
+#      (via run-all-benchmarks workflow)
+#
+# Note: The CircleCI project trigger must be set to "Tag pushes"
+# in the CircleCI web UI for tag-based triggering to work.
+# ---------------------------------------------------------------
 
 workflows:
-  on-push:
+  tag-all-benchmarks:
     when:
       not: << pipeline.parameters.run_benchmark >>
     jobs:
-      - benchmark-medium:
+      - benchmark-medium-artifact:
           filters:
+            tags:
+              only: /^view-benchmark$/
             branches:
-              only: main
+              ignore: /.*/
+      - benchmark-large-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-xlarge-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-arm-medium-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-arm-large-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - collect-results:
+          requires:
+            - benchmark-medium-artifact
+            - benchmark-large-artifact
+            - benchmark-xlarge-artifact
+            - benchmark-arm-medium-artifact
+            - benchmark-arm-large-artifact
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
 
   run-benchmarks:
     when:
@@ -158,8 +253,15 @@ workflows:
         - << pipeline.parameters.run_benchmark >>
         - << pipeline.parameters.run_all >>
     jobs:
-      - benchmark-medium
-      - benchmark-large
-      - benchmark-xlarge
-      - benchmark-arm-medium
-      - benchmark-arm-large
+      - benchmark-medium-artifact
+      - benchmark-large-artifact
+      - benchmark-xlarge-artifact
+      - benchmark-arm-medium-artifact
+      - benchmark-arm-large-artifact
+      - collect-results:
+          requires:
+            - benchmark-medium-artifact
+            - benchmark-large-artifact
+            - benchmark-xlarge-artifact
+            - benchmark-arm-medium-artifact
+            - benchmark-arm-large-artifact
