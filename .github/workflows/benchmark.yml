@@ -2,24 +2,8 @@ name: CI Benchmark
 
 on:
   push:
-    branches: [main]
-    # Only trigger on pushes that affect benchmark logic or CI config
-    paths:
-      - "benchmarks/**"
-      - "config/**"
-      - "scripts/**"
-      - ".github/workflows/benchmark.yml"
-  workflow_dispatch:
-    inputs:
-      runner:
-        description: "Runner to use for the benchmark (single mode)"
-        required: false
-        default: "ubuntu-latest"
-      run_matrix:
-        description: "Run benchmarks across all runner types"
-        required: false
-        type: boolean
-        default: false
+    tags:
+      - "view-benchmark"
 
 permissions:
   contents: write
@@ -28,43 +12,7 @@ env:
   RESULTS_REPO: ${{ github.repository_owner }}/ci-benchmark-results
 
 jobs:
-  benchmark-single:
-    if: ${{ !inputs.run_matrix }}
-    runs-on: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y sysbench jq
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install sysbench jq
-
-      - name: Clone results repo
-        env:
-          RESULTS_REPO_TOKEN: ${{ secrets.RESULTS_REPO_TOKEN }}
-          RESULTS_REPO: ${{ env.RESULTS_REPO }}
-        run: |
-          bash scripts/clone-results.sh
-          echo "CI_BENCH_RESULTS_DIR=/tmp/results-repo" >> "$GITHUB_ENV"
-
-      - name: Run benchmark
-        env:
-          CI_BENCH_PROVIDER: github-actions
-          CI_BENCH_RUNNER: ${{ github.event.inputs.runner || 'ubuntu-latest' }}
-        run: bash benchmarks/run.sh
-
-      - name: Push results
-        env:
-          RESULTS_CLONE_DIR: /tmp/results-repo
-        run: bash scripts/push-results.sh "github-actions" "${{ github.event.inputs.runner || 'ubuntu-latest' }}"
-
   benchmark-matrix:
-    if: ${{ inputs.run_matrix }}
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +57,6 @@ jobs:
           retention-days: 1
 
   collect-results:
-    if: ${{ inputs.run_matrix }}
     needs: [benchmark-matrix]
     runs-on: ubuntu-latest
 
