@@ -24,7 +24,7 @@ jobs:
           # - ubuntu-latest-8-cores   # Requires org-provisioned larger runner
           # - ubuntu-latest-16-cores  # Requires org-provisioned larger runner
           - macos-latest
-          - macos-13
+          - macos-14
     runs-on: ${{ matrix.runner }}
 
     steps:
@@ -32,7 +32,7 @@ jobs:
         run: echo "CI_BENCH_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -74,7 +74,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
