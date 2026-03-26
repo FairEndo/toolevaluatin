@@ -57,7 +57,16 @@ jobs:
               exit 0
             fi
             echo "Push failed (attempt $attempt/3), pulling and retrying..."
-            git pull --rebase
+            if ! git pull --rebase; then
+              echo "Rebase conflict detected — auto-resolving generated files..."
+              git checkout --theirs results/ docs/ 2>/dev/null || true
+              git add results/ docs/
+              if ! GIT_EDITOR=true git rebase --continue; then
+                echo "Rebase could not be completed — aborting"
+                git rebase --abort
+                continue
+              fi
+            fi
           done
           echo "Push failed after 3 attempts"
           exit 1
@@ -112,7 +121,16 @@ jobs:
               exit 0
             fi
             echo "Push failed (attempt $attempt/3), pulling and retrying..."
-            git pull --rebase
+            if ! git pull --rebase; then
+              echo "Rebase conflict detected — auto-resolving generated files..."
+              git checkout --theirs results/ docs/ 2>/dev/null || true
+              git add results/ docs/
+              if ! GIT_EDITOR=true git rebase --continue; then
+                echo "Rebase could not be completed — aborting"
+                git rebase --abort
+                continue
+              fi
+            fi
           done
           echo "Push failed after 3 attempts"
           exit 1
