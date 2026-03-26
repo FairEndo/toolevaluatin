@@ -1,5 +1,50 @@
 [
   {
+    "provider": "github-actions",
+    "runner": "ubuntu-latest",
+    "timestamp": "2026-03-26T03:54:09Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          1443.03,
+          1443.15,
+          1442.72,
+          1440.76,
+          1442.64
+        ],
+        "median": 1442.72,
+        "min": 1440.76,
+        "max": 1443.15,
+        "stddev": 0.87,
+        "unit": "events/sec"
+      },
+      "memory": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          6068.55,
+          6060.96,
+          6073.17,
+          6075.81,
+          6064.64
+        ],
+        "median": 6068.55,
+        "min": 6060.96,
+        "max": 6075.81,
+        "stddev": 5.42,
+        "unit": "MiB/sec"
+      }
+    },
+    "system": {
+      "processor": "AMD EPYC 7763 64-Core Processor",
+      "vcpus": 4,
+      "ram_mb": 15994,
+      "load_avg": "0.32, 0.28, 0.12"
+    }
+  },
+  {
     "provider": "circleci",
     "runner": "medium",
     "timestamp": "2026-03-26T03:52:41Z",
