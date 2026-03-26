@@ -1,5 +1,50 @@
 [
   {
+    "provider": "circleci",
+    "runner": "medium",
+    "timestamp": "2026-03-26T14:36:16Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          422.69,
+          416.55,
+          436.45,
+          413.28,
+          418.84
+        ],
+        "median": 418.84,
+        "min": 413.28,
+        "max": 436.45,
+        "stddev": 8.05,
+        "unit": "events/sec"
+      },
+      "memory": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          5608.55,
+          5339.65,
+          5528.51,
+          5698.29,
+          5537.12
+        ],
+        "median": 5537.12,
+        "min": 5339.65,
+        "max": 5698.29,
+        "stddev": 118.33,
+        "unit": "MiB/sec"
+      }
+    },
+    "system": {
+      "processor": "Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz",
+      "vcpus": 36,
+      "ram_mb": 4096,
+      "load_avg": "29.23, 14.07, 8.36"
+    }
+  },
+  {
     "provider": "github-actions",
     "runner": "ubuntu-latest",
     "timestamp": "2026-03-26T14:34:44Z",
@@ -42,6 +87,51 @@
       "vcpus": 4,
       "ram_mb": 15993,
       "load_avg": "1.17, 0.42, 0.15"
+    }
+  },
+  {
+    "provider": "github-actions",
+    "runner": "ubuntu-latest",
+    "timestamp": "2026-03-26T14:33:17Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          1443.89,
+          1443.69,
+          1443.99,
+          1443.72,
+          1443.89
+        ],
+        "median": 1443.89,
+        "min": 1443.69,
+        "max": 1443.99,
+        "stddev": 0.11,
+        "unit": "events/sec"
+      },
+      "memory": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          6077.57,
+          6073.15,
+          6072.57,
+          6057.83,
+          6067.86
+        ],
+        "median": 6072.57,
+        "min": 6057.83,
+        "max": 6077.57,
+        "stddev": 6.73,
+        "unit": "MiB/sec"
+      }
+    },
+    "system": {
+      "processor": "AMD EPYC 7763 64-Core Processor",
+      "vcpus": 4,
+      "ram_mb": 15994,
+      "load_avg": "0.33, 0.10, 0.04"
     }
   },
   {
