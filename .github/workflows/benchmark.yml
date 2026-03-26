@@ -28,6 +28,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
+      - name: Record job start time
+        run: echo "CI_BENCH_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Checkout repo
         uses: actions/checkout@v6
 
@@ -39,11 +42,20 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install sysbench jq
 
+      - name: Fetch pipeline trigger time
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TRIGGER_TIME=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" --jq '.created_at')
+          echo "CI_BENCH_TRIGGER_TIME=$TRIGGER_TIME" >> "$GITHUB_ENV"
+
       - name: Run benchmark
         env:
           CI_BENCH_PROVIDER: github-actions
           CI_BENCH_RUNNER: ${{ matrix.runner }}
           CI_BENCH_RESULTS_DIR: /tmp/benchmark-output
+          CI_BENCH_TRIGGER_TIME: ${{ env.CI_BENCH_TRIGGER_TIME }}
+          CI_BENCH_JOB_STARTED_AT: ${{ env.CI_BENCH_JOB_STARTED_AT }}
         run: |
           mkdir -p /tmp/benchmark-output/results/raw
           mkdir -p /tmp/benchmark-output/docs

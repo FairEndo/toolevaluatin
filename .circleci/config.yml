@@ -25,6 +25,27 @@ parameters:
     default: false
 
 commands:
+  record-job-start:
+    description: Record the time the job started executing
+    steps:
+      - run:
+          name: Record job start time
+          command: echo "export CI_BENCH_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$BASH_ENV"
+
+  fetch-trigger-time:
+    description: Fetch pipeline creation time from CircleCI API
+    steps:
+      - run:
+          name: Fetch pipeline trigger time
+          command: |
+            TRIGGER_TIME=$(curl -sf "https://circleci.com/api/v2/pipeline/${CIRCLE_PIPELINE_ID}" \
+              -H "Circle-Token: ${CIRCLECI_CLI_TOKEN:-}" | jq -r '.created_at // empty')
+            if [[ -z "$TRIGGER_TIME" ]]; then
+              echo "WARNING: Could not fetch pipeline trigger time, using current time" >&2
+              TRIGGER_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            fi
+            echo "export CI_BENCH_TRIGGER_TIME=$TRIGGER_TIME" >> "$BASH_ENV"
+
   install-deps:
     description: Install benchmark dependencies
     steps:
@@ -51,6 +72,8 @@ commands:
             CI_BENCH_PROVIDER: circleci
             CI_BENCH_RUNNER: << parameters.runner >>
             CI_BENCH_RESULTS_DIR: /tmp/results-repo
+            CI_BENCH_TRIGGER_TIME: ${CI_BENCH_TRIGGER_TIME}
+            CI_BENCH_JOB_STARTED_AT: ${CI_BENCH_JOB_STARTED_AT}
           command: bash benchmarks/run.sh
 
   commit-and-push-results:
@@ -75,6 +98,8 @@ commands:
             CI_BENCH_PROVIDER: circleci
             CI_BENCH_RUNNER: << parameters.runner >>
             CI_BENCH_RESULTS_DIR: /tmp/benchmark-output
+            CI_BENCH_TRIGGER_TIME: ${CI_BENCH_TRIGGER_TIME}
+            CI_BENCH_JOB_STARTED_AT: ${CI_BENCH_JOB_STARTED_AT}
           command: |
             mkdir -p /tmp/benchmark-output/results/raw
             mkdir -p /tmp/benchmark-output/docs
@@ -94,8 +119,10 @@ jobs:
       - image: cimg/base:current
     resource_class: medium
     steps:
+      - record-job-start
       - checkout
       - install-deps
+      - fetch-trigger-time
       - clone-results-repo
       - run-benchmark:
           runner: medium
@@ -107,8 +134,10 @@ jobs:
       - image: cimg/base:current
     resource_class: medium
     steps:
+      - record-job-start
       - checkout
       - install-deps
+      - fetch-trigger-time
       - run-benchmark-local:
           runner: medium
       - persist-benchmark-result
@@ -118,8 +147,10 @@ jobs:
       - image: cimg/base:current
     resource_class: large
     steps:
+      - record-job-start
       - checkout
       - install-deps
+      - fetch-trigger-time
       - run-benchmark-local:
           runner: large
       - persist-benchmark-result
@@ -129,8 +160,10 @@ jobs:
       - image: cimg/base:current
     resource_class: xlarge
     steps:
+      - record-job-start
       - checkout
       - install-deps
+      - fetch-trigger-time
       - run-benchmark-local:
           runner: xlarge
       - persist-benchmark-result
@@ -140,8 +173,10 @@ jobs:
       - image: cimg/base:current
     resource_class: arm.medium
     steps:
+      - record-job-start
       - checkout
       - install-deps
+      - fetch-trigger-time
       - run-benchmark-local:
           runner: arm.medium
       - persist-benchmark-result
@@ -151,8 +186,10 @@ jobs:
       - image: cimg/base:current
     resource_class: arm.large
     steps:
+      - record-job-start
       - checkout
       - install-deps
+      - fetch-trigger-time
       - run-benchmark-local:
           runner: arm.large
       - persist-benchmark-result

@@ -34,6 +34,48 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 OVERALL_START=$(date +%s)
 
 # ---------------------------------------------------------------------------
+# Queue / startup timing
+# ---------------------------------------------------------------------------
+# CI_BENCH_TRIGGER_TIME    — when the pipeline was created (from CI provider)
+# CI_BENCH_JOB_STARTED_AT  — when the runner picked up the job (first CI step)
+# OVERALL_START             — when this script began (benchmark start)
+
+TRIGGER_TIME="${CI_BENCH_TRIGGER_TIME:-}"
+JOB_STARTED_AT="${CI_BENCH_JOB_STARTED_AT:-}"
+BENCH_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Cross-platform ISO 8601 → epoch converter
+iso_to_epoch() {
+    local ts="$1"
+    if date -d "$ts" +%s 2>/dev/null; then
+        return
+    fi
+    # macOS: try -jf with fractional seconds, then without
+    date -jf "%Y-%m-%dT%H:%M:%S" "${ts%%.*}" +%s 2>/dev/null \
+        || date -jf "%Y-%m-%dT%H:%M:%SZ" "${ts%Z}" +%s 2>/dev/null \
+        || echo ""
+}
+
+QUEUE_SECONDS="null"
+SETUP_SECONDS="null"
+TOTAL_QUEUE_SETUP_SECONDS="null"
+
+if [[ -n "$TRIGGER_TIME" && -n "$JOB_STARTED_AT" ]]; then
+    trigger_epoch=$(iso_to_epoch "$TRIGGER_TIME")
+    job_epoch=$(iso_to_epoch "$JOB_STARTED_AT")
+    bench_epoch="$OVERALL_START"
+    if [[ -n "$trigger_epoch" && -n "$job_epoch" ]]; then
+        QUEUE_SECONDS=$(( job_epoch - trigger_epoch ))
+        SETUP_SECONDS=$(( bench_epoch - job_epoch ))
+        TOTAL_QUEUE_SETUP_SECONDS=$(( bench_epoch - trigger_epoch ))
+        # Guard against negative values from clock skew
+        [[ "$QUEUE_SECONDS" -lt 0 ]] && QUEUE_SECONDS=0
+        [[ "$SETUP_SECONDS" -lt 0 ]] && SETUP_SECONDS=0
+        [[ "$TOTAL_QUEUE_SETUP_SECONDS" -lt 0 ]] && TOTAL_QUEUE_SETUP_SECONDS=0
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
 log() { printf '[bench] %s %s\n' "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$*"; }
@@ -379,11 +421,25 @@ jq -n \
     --argjson vcpus  "$VCPUS" \
     --argjson ram_mb "$RAM_MB" \
     --arg load_avg   "$LOAD_AVG" \
+    --arg trigger_time      "${TRIGGER_TIME:-null}" \
+    --arg job_started_at    "${JOB_STARTED_AT:-null}" \
+    --arg bench_started_at  "$BENCH_STARTED_AT" \
+    --argjson queue_secs    "$QUEUE_SECONDS" \
+    --argjson setup_secs    "$SETUP_SECONDS" \
+    --argjson total_secs    "$TOTAL_QUEUE_SETUP_SECONDS" \
     '{
         "provider":   $provider,
         "runner":     $runner,
         "timestamp":  $timestamp,
         "benchmarks": $benchmarks,
+        "timing": {
+            "trigger_time":     (if $trigger_time == "null" then null else $trigger_time end),
+            "job_started_at":   (if $job_started_at == "null" then null else $job_started_at end),
+            "bench_started_at": $bench_started_at,
+            "queue_seconds":    $queue_secs,
+            "setup_seconds":    $setup_secs,
+            "total_seconds":    $total_secs
+        },
         "system": {
             "processor": $processor,
             "vcpus":     $vcpus,

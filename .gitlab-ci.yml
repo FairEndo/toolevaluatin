@@ -47,6 +47,8 @@ stages:
   variables:
     CI_BENCH_PROVIDER: gitlab
     CI_BENCH_RESULTS_DIR: /tmp/results-repo
+    CI_BENCH_TRIGGER_TIME: $CI_PIPELINE_CREATED_AT
+    CI_BENCH_JOB_STARTED_AT: $CI_JOB_STARTED_AT
   before_script:
     - apt-get update && apt-get install -y sysbench jq git
   script:
@@ -68,5 +70,7 @@ benchmark-small:
   variables:
     CI_BENCH_PROVIDER: gitlab
     CI_BENCH_RUNNER: small-amd64
+    CI_BENCH_TRIGGER_TIME: $CI_PIPELINE_CREATED_AT
+    CI_BENCH_JOB_STARTED_AT: $CI_JOB_STARTED_AT
   rules:
     - when: always
