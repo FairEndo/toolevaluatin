@@ -23,8 +23,10 @@ jobs:
           # - ubuntu-latest-4-cores   # Requires org-provisioned larger runner
           # - ubuntu-latest-8-cores   # Requires org-provisioned larger runner
           # - ubuntu-latest-16-cores  # Requires org-provisioned larger runner
+          - ubuntu-24.04-arm
           - macos-latest
           - macos-14
+          - macos-15-intel
     runs-on: ${{ matrix.runner }}
 
     steps:
