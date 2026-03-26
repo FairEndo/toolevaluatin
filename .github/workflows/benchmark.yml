@@ -32,7 +32,7 @@ jobs:
         run: echo "CI_BENCH_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -62,7 +62,7 @@ jobs:
           bash benchmarks/run.sh
 
       - name: Upload result artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-${{ matrix.runner }}
           path: /tmp/benchmark-output/results/raw/*.json
@@ -74,13 +74,13 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Download all benchmark artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: /tmp/benchmark-artifacts
           pattern: benchmark-*
