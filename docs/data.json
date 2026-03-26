@@ -2,46 +2,46 @@
   {
     "provider": "github-actions",
     "runner": "ubuntu-latest",
-    "timestamp": "2026-03-26T14:37:53Z",
+    "timestamp": "2026-03-26T14:39:23Z",
     "benchmarks": {
       "cpu": {
         "tool": "sysbench",
         "iterations": 5,
         "scores": [
-          1443.66,
-          1443.67,
-          1443.40,
-          1440.94,
-          1443.64
+          1442.69,
+          1442.68,
+          1442.18,
+          1442.78,
+          1442.15
         ],
-        "median": 1443.64,
-        "min": 1440.94,
-        "max": 1443.67,
-        "stddev": 1.07,
+        "median": 1442.68,
+        "min": 1442.15,
+        "max": 1442.78,
+        "stddev": 0.27,
         "unit": "events/sec"
       },
       "memory": {
         "tool": "sysbench",
         "iterations": 5,
         "scores": [
-          6063.30,
-          6060.84,
-          6020.25,
-          6065.17,
-          6014.27
+          6037.67,
+          6033.87,
+          6046.23,
+          6028.74,
+          6039.55
         ],
-        "median": 6060.84,
-        "min": 6014.27,
-        "max": 6065.17,
-        "stddev": 22.58,
+        "median": 6037.67,
+        "min": 6028.74,
+        "max": 6046.23,
+        "stddev": 5.83,
         "unit": "MiB/sec"
       }
     },
     "system": {
       "processor": "AMD EPYC 7763 64-Core Processor",
       "vcpus": 4,
-      "ram_mb": 15990,
-      "load_avg": "0.27, 0.06, 0.02"
+      "ram_mb": 15993,
+      "load_avg": "0.57, 0.14, 0.05"
     }
   },
   {
