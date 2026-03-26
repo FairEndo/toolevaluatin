@@ -2,46 +2,46 @@
   {
     "provider": "github-actions",
     "runner": "ubuntu-latest",
-    "timestamp": "2026-03-26T14:25:54Z",
+    "timestamp": "2026-03-26T14:26:45Z",
     "benchmarks": {
       "cpu": {
         "tool": "sysbench",
         "iterations": 5,
         "scores": [
-          1441.49,
-          1440.19,
-          1442.22,
-          1439.72,
-          1442.09
+          1294.50,
+          1293.57,
+          1294.85,
+          1295.02,
+          1295.08
         ],
-        "median": 1441.49,
-        "min": 1439.72,
-        "max": 1442.22,
-        "stddev": 1.01,
+        "median": 1294.85,
+        "min": 1293.57,
+        "max": 1295.08,
+        "stddev": 0.55,
         "unit": "events/sec"
       },
       "memory": {
         "tool": "sysbench",
         "iterations": 5,
         "scores": [
-          6043.11,
-          6039.90,
-          6044.56,
-          6044.37,
-          6040.87
+          5556.96,
+          5531.45,
+          5552.78,
+          5563.83,
+          5552.22
         ],
-        "median": 6043.11,
-        "min": 6039.90,
-        "max": 6044.56,
-        "stddev": 1.87,
+        "median": 5552.78,
+        "min": 5531.45,
+        "max": 5563.83,
+        "stddev": 10.83,
         "unit": "MiB/sec"
       }
     },
     "system": {
-      "processor": "AMD EPYC 7763 64-Core Processor",
+      "processor": "AMD EPYC 9V74 80-Core Processor",
       "vcpus": 4,
-      "ram_mb": 15989,
-      "load_avg": "0.37, 0.10, 0.03"
+      "ram_mb": 15990,
+      "load_avg": "0.68, 0.17, 0.06"
     }
   },
   {
