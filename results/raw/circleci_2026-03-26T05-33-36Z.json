@@ -1,0 +1,45 @@
+{
+  "provider": "circleci",
+  "runner": "medium",
+  "timestamp": "2026-03-26T05:33:36Z",
+  "benchmarks": {
+    "cpu": {
+      "tool": "sysbench",
+      "iterations": 5,
+      "scores": [
+        412.86,
+        416.10,
+        423.20,
+        426.04,
+        430.96
+      ],
+      "median": 423.20,
+      "min": 412.86,
+      "max": 430.96,
+      "stddev": 6.58,
+      "unit": "events/sec"
+    },
+    "memory": {
+      "tool": "sysbench",
+      "iterations": 5,
+      "scores": [
+        5164.46,
+        5133.36,
+        5351.05,
+        5188.85,
+        5171.57
+      ],
+      "median": 5171.57,
+      "min": 5133.36,
+      "max": 5351.05,
+      "stddev": 76.73,
+      "unit": "MiB/sec"
+    }
+  },
+  "system": {
+    "processor": "Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz",
+    "vcpus": 36,
+    "ram_mb": 4096,
+    "load_avg": "14.21, 8.65, 7.14"
+  }
+}
