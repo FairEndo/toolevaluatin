@@ -58,6 +58,10 @@ commands:
     steps:
       - run:
           name: Clone results repo
+          environment:
+            # Hardcoded — CircleCI org name has a space ("Benchmark Org") which
+            # breaks auto-detection. Update if the GitHub owner changes.
+            RESULTS_REPO: FairEndo/ci-benchmark-results
           command: bash scripts/clone-results.sh
 
   run-benchmark:
@@ -72,8 +76,6 @@ commands:
             CI_BENCH_PROVIDER: circleci
             CI_BENCH_RUNNER: << parameters.runner >>
             CI_BENCH_RESULTS_DIR: /tmp/results-repo
-            CI_BENCH_TRIGGER_TIME: ${CI_BENCH_TRIGGER_TIME}
-            CI_BENCH_JOB_STARTED_AT: ${CI_BENCH_JOB_STARTED_AT}
           command: bash benchmarks/run.sh
 
   commit-and-push-results:
@@ -98,8 +100,6 @@ commands:
             CI_BENCH_PROVIDER: circleci
             CI_BENCH_RUNNER: << parameters.runner >>
             CI_BENCH_RESULTS_DIR: /tmp/benchmark-output
-            CI_BENCH_TRIGGER_TIME: ${CI_BENCH_TRIGGER_TIME}
-            CI_BENCH_JOB_STARTED_AT: ${CI_BENCH_JOB_STARTED_AT}
           command: |
             mkdir -p /tmp/benchmark-output/results/raw
             mkdir -p /tmp/benchmark-output/docs
@@ -207,6 +207,10 @@ jobs:
           at: /tmp/benchmark-artifacts
       - run:
           name: Clone results repo
+          environment:
+            # Hardcoded — CircleCI org name has a space ("Benchmark Org") which
+            # breaks auto-detection. Update if the GitHub owner changes.
+            RESULTS_REPO: FairEndo/ci-benchmark-results
           command: bash scripts/clone-results.sh
       - run:
           name: Collect and push results
