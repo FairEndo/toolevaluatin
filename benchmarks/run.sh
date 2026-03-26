@@ -368,7 +368,7 @@ fi
 # ---------------------------------------------------------------------------
 log "Writing results..."
 
-OUTPUT_FILE="${RAW_DIR}/${PROVIDER}_${TIMESTAMP//[:.]/-}.json"
+OUTPUT_FILE="${RAW_DIR}/${PROVIDER}_${RUNNER}_${TIMESTAMP//[:.]/-}.json"
 
 jq -n \
     --arg provider   "$PROVIDER" \
