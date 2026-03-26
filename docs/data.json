@@ -1,5 +1,50 @@
 [
   {
+    "provider": "circleci",
+    "runner": "medium",
+    "timestamp": "2026-03-26T04:16:06Z",
+    "benchmarks": {
+      "cpu": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          431.78,
+          432.57,
+          437.00,
+          437.31,
+          437.60
+        ],
+        "median": 437.00,
+        "min": 431.78,
+        "max": 437.60,
+        "stddev": 2.53,
+        "unit": "events/sec"
+      },
+      "memory": {
+        "tool": "sysbench",
+        "iterations": 5,
+        "scores": [
+          5565.16,
+          5711.22,
+          5667.17,
+          5683.58,
+          5652.21
+        ],
+        "median": 5667.17,
+        "min": 5565.16,
+        "max": 5711.22,
+        "stddev": 49.40,
+        "unit": "MiB/sec"
+      }
+    },
+    "system": {
+      "processor": "Intel(R) Xeon(R) Platinum 8223CL CPU @ 3.00GHz",
+      "vcpus": 36,
+      "ram_mb": 4096,
+      "load_avg": "13.24, 23.54, 34.73"
+    }
+  },
+  {
     "provider": "github-actions",
     "runner": "ubuntu-latest",
     "timestamp": "2026-03-26T04:14:40Z",
