@@ -255,6 +255,11 @@ if [[ "$CAN_PARSE" == true ]]; then
   validate_benchmark "memory" "MiB/sec"
 
   # -------------------------------------------------------------------------
+  # k2. Compile benchmark validation
+  # -------------------------------------------------------------------------
+  validate_benchmark "compile" "seconds"
+
+  # -------------------------------------------------------------------------
   # k. Disk benchmark validation
   # -------------------------------------------------------------------------
   # Disk has a different structure: composite + sub-tests

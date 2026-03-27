@@ -454,6 +454,7 @@
                                     <th>Mem Stddev</th>
                                     <th>Queue Time</th>
                                     <th>Setup Time</th>
+                                    <th>Compile</th>
                                     <th>Processor</th>
                                     <th>vCPUs</th>
                                     <th>RAM</th>
@@ -640,6 +641,10 @@
                                 : null;
                         var timing = run.timing || null;
                         var sys = run.system || {};
+                        var compile =
+                            run.benchmarks && run.benchmarks.compile
+                                ? run.benchmarks.compile
+                                : null;
 
                         var tr = document.createElement("tr");
                         tr.innerHTML =
@@ -690,6 +695,12 @@
                             '<td class="score-cell">' +
                             (timing && timing.setup_seconds != null
                                 ? timing.setup_seconds +
+                                  '<span class="unit">s</span>'
+                                : '<span class="na">&mdash;</span>') +
+                            "</td>" +
+                            '<td class="score-cell">' +
+                            (compile
+                                ? fmtNum(compile.median, 2) +
                                   '<span class="unit">s</span>'
                                 : '<span class="na">&mdash;</span>') +
                             "</td>" +

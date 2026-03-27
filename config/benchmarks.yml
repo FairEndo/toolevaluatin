@@ -27,6 +27,11 @@ disk_warmup: true
 # Note: threads fixed at 1 for single-core comparison across providers.
 # Uses fio with psync ioengine. Direct I/O on Linux only (not supported on macOS).
 
+# --- Compile Benchmark ---
+compile_enabled: true
+compile_iterations: 5
+# Note: builds Redis 7.2.7 with make -j (cgroups-aware). Measures wall-clock seconds (lower is better).
+
 # --- Future Benchmarks ---
 # network_enabled: false
 # network_tool: iperf3

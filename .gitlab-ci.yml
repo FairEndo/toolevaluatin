@@ -50,7 +50,7 @@ stages:
     CI_BENCH_TRIGGER_TIME: $CI_PIPELINE_CREATED_AT
     CI_BENCH_JOB_STARTED_AT: $CI_JOB_STARTED_AT
   before_script:
-    - apt-get update && apt-get install -y sysbench jq git
+    - apt-get update && apt-get install -y sysbench jq git fio build-essential
   script:
     # Clone the external results repo
     - bash scripts/clone-results.sh

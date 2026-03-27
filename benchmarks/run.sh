@@ -150,6 +150,8 @@ if [[ -f "$CONFIG_FILE" ]]; then
     CFG_DISK_ITERATIONS="$(yaml_get   "$CONFIG_FILE" "disk_iterations"   "5")"
     CFG_DISK_RUNTIME="$(yaml_get      "$CONFIG_FILE" "disk_runtime"      "5")"
     CFG_DISK_WARMUP="$(yaml_get       "$CONFIG_FILE" "disk_warmup"       "true")"
+    CFG_COMPILE_ENABLED="$(yaml_get  "$CONFIG_FILE" "compile_enabled"    "true")"
+    CFG_COMPILE_ITERATIONS="$(yaml_get "$CONFIG_FILE" "compile_iterations" "5")"
 else
     log "  Config file not found — using defaults"
     CFG_CPU_ENABLED="true"
@@ -165,6 +167,8 @@ else
     CFG_DISK_ITERATIONS="5"
     CFG_DISK_RUNTIME="5"
     CFG_DISK_WARMUP="true"
+    CFG_COMPILE_ENABLED="true"
+    CFG_COMPILE_ITERATIONS="5"
 fi
 
 # Environment variable overrides take precedence
@@ -181,6 +185,8 @@ DISK_ENABLED="${CI_BENCH_DISK_ENABLED:-$CFG_DISK_ENABLED}"
 DISK_ITERATIONS="${CI_BENCH_DISK_ITERATIONS:-$CFG_DISK_ITERATIONS}"
 DISK_RUNTIME="${CI_BENCH_DISK_RUNTIME:-$CFG_DISK_RUNTIME}"
 DISK_WARMUP="${CI_BENCH_DISK_WARMUP:-$CFG_DISK_WARMUP}"
+COMPILE_ENABLED="${CI_BENCH_COMPILE_ENABLED:-$CFG_COMPILE_ENABLED}"
+COMPILE_ITERATIONS="${CI_BENCH_COMPILE_ITERATIONS:-$CFG_COMPILE_ITERATIONS}"
 PROVIDER="${CI_BENCH_PROVIDER:-unknown}"
 RUNNER="${CI_BENCH_RUNNER:-default}"
 
@@ -199,6 +205,8 @@ log "  disk_enabled       = ${DISK_ENABLED}"
 log "  disk_iterations    = ${DISK_ITERATIONS}"
 log "  disk_runtime       = ${DISK_RUNTIME}"
 log "  disk_warmup        = ${DISK_WARMUP}"
+log "  compile_enabled    = ${COMPILE_ENABLED}"
+log "  compile_iterations = ${COMPILE_ITERATIONS}"
 
 # ---------------------------------------------------------------------------
 # Collect system information
@@ -472,6 +480,37 @@ if [[ "${DISK_ENABLED}" == "true" ]]; then
     log "  Disk benchmark completed in ${DISK_ELAPSED}s"
 else
     log "Disk benchmark is disabled — skipping"
+fi
+
+# --- Compile benchmark --------------------------------------------------------
+if [[ "${COMPILE_ENABLED}" == "true" ]]; then
+    log "Running compile benchmark..."
+    COMPILE_START=$(timer_start)
+
+    COMPILE_SCRIPT="${LIB_DIR}/compile.sh"
+    COMPILE_JSON=""
+
+    if [[ -f "$COMPILE_SCRIPT" ]]; then
+        debug_log "Calling: bash $COMPILE_SCRIPT $COMPILE_ITERATIONS"
+        COMPILE_JSON="$(bash "$COMPILE_SCRIPT" "$COMPILE_ITERATIONS")" || {
+            log "  WARNING: compile.sh failed"
+            COMPILE_JSON=""
+        }
+    else
+        log "  WARNING: benchmarks/lib/compile.sh not found — skipping compile benchmark"
+    fi
+
+    if [[ -n "$COMPILE_JSON" ]]; then
+        MEDIAN="$(echo "$COMPILE_JSON" | jq '.median')"
+        STDDEV="$(echo "$COMPILE_JSON" | jq '.stddev')"
+        log "  median = ${MEDIAN} seconds (stddev: ${STDDEV})"
+        BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson compile "$COMPILE_JSON" '. + { "compile": $compile }')"
+    fi
+
+    COMPILE_ELAPSED=$(timer_elapsed "$COMPILE_START")
+    log "  Compile benchmark completed in ${COMPILE_ELAPSED}s"
+else
+    log "Compile benchmark is disabled — skipping"
 fi
 
 # ---------------------------------------------------------------------------

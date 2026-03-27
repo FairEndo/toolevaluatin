@@ -51,7 +51,7 @@ commands:
     steps:
       - run:
           name: Install dependencies
-          command: sudo apt-get update && sudo apt-get install -y sysbench jq fio
+          command: sudo apt-get update && sudo apt-get install -y sysbench jq fio build-essential
 
   install-deps-macos:
     description: Install benchmark dependencies (macOS)
