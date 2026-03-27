@@ -47,11 +47,18 @@ commands:
             echo "export CI_BENCH_TRIGGER_TIME=$TRIGGER_TIME" >> "$BASH_ENV"
 
   install-deps:
-    description: Install benchmark dependencies
+    description: Install benchmark dependencies (Linux)
     steps:
       - run:
           name: Install dependencies
-          command: sudo apt-get update && sudo apt-get install -y sysbench jq
+          command: sudo apt-get update && sudo apt-get install -y sysbench jq fio
+
+  install-deps-macos:
+    description: Install benchmark dependencies (macOS)
+    steps:
+      - run:
+          name: Install dependencies (macOS)
+          command: brew install sysbench jq fio
 
   clone-results-repo:
     description: Clone the external results repository
@@ -110,6 +117,9 @@ commands:
             - results/raw/*.json
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Linux Docker jobs
+  # ---------------------------------------------------------------------------
   benchmark-medium:
     docker:
       - image: cimg/base:current
@@ -190,6 +200,38 @@ jobs:
           runner: arm.large
       - persist-benchmark-result
 
+  # ---------------------------------------------------------------------------
+  # macOS jobs (Apple Silicon — M1)
+  # ---------------------------------------------------------------------------
+  benchmark-macos-m1-medium-artifact:
+    macos:
+      xcode: "16.2.0"
+    resource_class: macos.m1.medium.gen1
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps-macos
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: macos.m1.medium.gen1
+      - persist-benchmark-result
+
+  benchmark-macos-m1-large-artifact:
+    macos:
+      xcode: "16.2.0"
+    resource_class: macos.m1.large.gen1
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps-macos
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: macos.m1.large.gen1
+      - persist-benchmark-result
+
+  # ---------------------------------------------------------------------------
+  # Result collection
+  # ---------------------------------------------------------------------------
   collect-results:
     docker:
       - image: cimg/base:current
@@ -211,13 +253,13 @@ jobs:
 # ---------------------------------------------------------------
 # Workflow Trigger Model:
 #
-#   1. Tag push of "view-benchmark" → all 5 resource classes
+#   1. Tag push of "view-benchmark" → all 7 resource classes
 #      (via tag-all-benchmarks workflow)
 #
 #   2. API with run_benchmark: true → single medium benchmark
 #      (via run-benchmarks workflow)
 #
-#   3. API with run_benchmark: true, run_all: true → all 5 resource classes
+#   3. API with run_benchmark: true, run_all: true → all 7 resource classes
 #      (via run-all-benchmarks workflow)
 #
 # Note: The CircleCI project trigger must be set to "Tag pushes"
@@ -259,6 +301,18 @@ workflows:
               only: /^view-benchmark$/
             branches:
               ignore: /.*/
+      - benchmark-macos-m1-medium-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-macos-m1-large-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
       - collect-results:
           requires:
             - benchmark-medium-artifact
@@ -266,6 +320,8 @@ workflows:
             - benchmark-xlarge-artifact
             - benchmark-arm-medium-artifact
             - benchmark-arm-large-artifact
+            - benchmark-macos-m1-medium-artifact
+            - benchmark-macos-m1-large-artifact
           filters:
             tags:
               only: /^view-benchmark$/
@@ -291,6 +347,8 @@ workflows:
       - benchmark-xlarge-artifact
       - benchmark-arm-medium-artifact
       - benchmark-arm-large-artifact
+      - benchmark-macos-m1-medium-artifact
+      - benchmark-macos-m1-large-artifact
       - collect-results:
           requires:
             - benchmark-medium-artifact
@@ -298,3 +356,5 @@ workflows:
             - benchmark-xlarge-artifact
             - benchmark-arm-medium-artifact
             - benchmark-arm-large-artifact
+            - benchmark-macos-m1-medium-artifact
+            - benchmark-macos-m1-large-artifact
