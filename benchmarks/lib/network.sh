@@ -10,7 +10,7 @@ set -euo pipefail
 # Arguments:
 #   iterations      Number of measured runs
 #   download_bytes  Size of the test download in bytes (default: 26214400 = 25 MiB)
-#   warmup          "true" or "false" — run one throwaway iteration first (default: true)
+#   warmup          "true" or "false" — run one warmup iteration first (default: true, included in results)
 #
 # Runs 2 sub-tests per iteration:
 #   1. Download throughput  (MB/s) — sustained transfer from a CDN endpoint
@@ -218,18 +218,21 @@ calc_stats() {
 # ---------------------------------------------------------------------------
 # Warmup
 # ---------------------------------------------------------------------------
+all_download=()
+all_latency=()
+
 if [[ "$warmup" == "true" ]]; then
-  echo "Warmup: running one throwaway iteration..." >&2
+  echo "Warmup: running warmup iteration..." >&2
   warmup_result=$(run_once)
   read -r warmup_dl warmup_lat <<< "$warmup_result"
-  echo "  -> ${warmup_dl} MB/s download, ${warmup_lat} ms TTFB (discarded)" >&2
+  all_download+=("$warmup_dl")
+  all_latency+=("$warmup_lat")
+  echo "  -> ${warmup_dl} MB/s download, ${warmup_lat} ms TTFB (included)" >&2
 fi
 
 # ---------------------------------------------------------------------------
 # Measured runs
 # ---------------------------------------------------------------------------
-all_download=()
-all_latency=()
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running network benchmark (iteration ${i}/${iterations})..." >&2

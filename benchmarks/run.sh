@@ -326,8 +326,12 @@ if [[ "${CPU_ENABLED}" == "true" ]]; then
 
         # Warmup
         if [[ "$CPU_WARMUP" == "true" ]]; then
-            log "  Warmup: running one throwaway iteration..."
-            sysbench cpu --cpu-max-prime="$CPU_MAX_PRIME" --threads=1 run >/dev/null 2>&1 || true
+            log "  Warmup: running warmup iteration..."
+            score="$(sysbench cpu --cpu-max-prime="$CPU_MAX_PRIME" --threads=1 run \
+                | grep -i 'events per second' \
+                | awk -F':' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')" || score="0"
+            CPU_SCORES+=("$score")
+            log "    score = ${score} (included)"
         fi
 
         for (( i = 1; i <= ITERATIONS; i++ )); do
@@ -407,8 +411,14 @@ if [[ "${MEMORY_ENABLED}" == "true" ]]; then
 
         # Warmup
         if [[ "$MEMORY_WARMUP" == "true" ]]; then
-            log "  Warmup: running one throwaway iteration..."
-            sysbench memory --memory-block-size="$MEMORY_BLOCK_SIZE" --memory-total-size="$MEMORY_TOTAL_SIZE" --threads=1 run >/dev/null 2>&1 || true
+            log "  Warmup: running warmup iteration..."
+            score="$(sysbench memory --memory-block-size="$MEMORY_BLOCK_SIZE" --memory-total-size="$MEMORY_TOTAL_SIZE" --threads=1 run \
+                | grep -oE '[0-9]+\.?[0-9]*[[:space:]]*MiB/sec' \
+                | grep -oE '[0-9]+\.?[0-9]*' \
+                | head -n1)" || score="0"
+            [[ -z "$score" ]] && score="0"
+            MEM_SCORES+=("$score")
+            log "    score = ${score} (included)"
         fi
 
         for (( i = 1; i <= MEMORY_ITERATIONS; i++ )); do

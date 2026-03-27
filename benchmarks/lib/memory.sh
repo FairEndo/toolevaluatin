@@ -11,7 +11,7 @@ set -euo pipefail
 #   iterations        Number of measured runs
 #   memory_block_size  Block size for memory operations (default: 1K)
 #   memory_total_size  Total size of data to transfer (default: 10G)
-#   warmup             "true" or "false" — run one throwaway iteration first (default: true)
+#   warmup             "true" or "false" — run one warmup iteration first (default: true, included in results)
 #
 # Stdout:  single JSON object with results
 # Stderr:  human-readable progress messages
@@ -66,16 +66,18 @@ run_once() {
 # ---------------------------------------------------------------------------
 # Warmup
 # ---------------------------------------------------------------------------
+scores=()
+
 if [[ "$warmup" == "true" ]]; then
-  echo "Warmup: running one throwaway iteration..." >&2
+  echo "Warmup: running warmup iteration..." >&2
   warmup_score=$(run_once)
-  echo "  -> ${warmup_score} MiB/sec (discarded)" >&2
+  scores+=("$warmup_score")
+  echo "  -> ${warmup_score} MiB/sec (included)" >&2
 fi
 
 # ---------------------------------------------------------------------------
 # Measured runs
 # ---------------------------------------------------------------------------
-scores=()
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running memory benchmark (iteration ${i}/${iterations})..." >&2

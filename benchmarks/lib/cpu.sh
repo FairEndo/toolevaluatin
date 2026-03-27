@@ -10,7 +10,7 @@ set -euo pipefail
 # Arguments:
 #   iterations     Number of measured runs
 #   cpu_max_prime  Upper limit for prime-number generation (default: 20000)
-#   warmup         "true" or "false" — run one throwaway iteration first (default: true)
+#   warmup         "true" or "false" — run one warmup iteration first (default: true, included in results)
 #
 # Stdout:  single JSON object with results
 # Stderr:  human-readable progress messages
@@ -64,16 +64,18 @@ run_once() {
 # ---------------------------------------------------------------------------
 # Warmup
 # ---------------------------------------------------------------------------
+scores=()
+
 if [[ "$warmup" == "true" ]]; then
-  echo "Warmup: running one throwaway iteration..." >&2
+  echo "Warmup: running warmup iteration..." >&2
   warmup_score=$(run_once)
-  echo "  -> ${warmup_score} events/sec (discarded)" >&2
+  scores+=("$warmup_score")
+  echo "  -> ${warmup_score} events/sec (included)" >&2
 fi
 
 # ---------------------------------------------------------------------------
 # Measured runs
 # ---------------------------------------------------------------------------
-scores=()
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running CPU benchmark (iteration ${i}/${iterations})..." >&2
