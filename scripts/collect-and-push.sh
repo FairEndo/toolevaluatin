@@ -132,8 +132,8 @@ SUMMARY_FILE="${RESULTS_DIR}/summary.md"
   echo "Showing the most recent run per provider/runner combination."
   echo "Full history is available in [\`results/raw/\`](raw/)."
   echo ""
-  echo "| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Processor | vCPUs | RAM |"
-  echo "|----------|--------|--------------------|------------|-----------------|------------|-------------------|-------------|-----------|-------|-----|"
+  echo "| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Network (median) | Net Stddev | Processor | vCPUs | RAM |"
+  echo "|----------|--------|--------------------|------------|-----------------|------------|-------------------|-------------|------------------|------------|-----------|-------|-----|"
 } > "$SUMMARY_FILE"
 
 ALL_ROWS=""
@@ -150,6 +150,8 @@ for json_file in "${RAW_DIR}"/*.json; do
       ((.benchmarks.memory.stddev // 0) | tostring),
       ((.benchmarks.disk.composite.median // 0) | tostring),
       ((.benchmarks.disk.composite.stddev // 0) | tostring),
+      ((.benchmarks.network.composite.median // 0) | tostring),
+      ((.benchmarks.network.composite.stddev // 0) | tostring),
       .system.processor // "unknown",
       ((.system.vcpus // 0) | tostring),
       ((.system.ram_mb // 0) | tostring)
@@ -172,7 +174,7 @@ if [[ -n "$ALL_ROWS" ]]; then
 
   printf '%s\n' "$DEDUPED" \
     | sort -t$'\t' -k4 -rn \
-    | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_proc r_vcpus r_ram; do
+    | while IFS=$'\t' read -r r_provider r_runner r_ts r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_net r_net_sd r_proc r_vcpus r_ram; do
         if [[ "$r_mem" == "0" ]]; then
           mem_display="—"
           mem_sd_display="—"
@@ -187,8 +189,15 @@ if [[ -n "$ALL_ROWS" ]]; then
           disk_display="${r_disk}"
           disk_sd_display="±${r_disk_sd}"
         fi
-        printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
-          "$r_provider" "$r_runner" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
+        if [[ "$r_net" == "0" ]]; then
+          net_display="—"
+          net_sd_display="—"
+        else
+          net_display="${r_net} MB/s"
+          net_sd_display="±${r_net_sd}"
+        fi
+        printf '| %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
+          "$r_provider" "$r_runner" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$net_display" "$net_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
       done >> "$SUMMARY_FILE"
 fi
 

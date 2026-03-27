@@ -32,6 +32,11 @@ compile_enabled: true
 compile_iterations: 5
 # Note: builds Redis 7.2.7 with make -j (cgroups-aware). Measures wall-clock seconds (lower is better).
 
-# --- Future Benchmarks ---
-# network_enabled: false
-# network_tool: iperf3
+# --- Network Benchmark ---
+network_enabled: true
+network_iterations: 5
+network_download_bytes: 26214400
+network_warmup: true
+# Note: measures download throughput (MB/s) and latency/TTFB (ms) via curl.
+# Uses Cloudflare speed-test CDN by default. Override with CI_BENCH_NETWORK_URL.
+# 26214400 bytes = 25 MiB — large enough to saturate the pipe, small enough to finish quickly.

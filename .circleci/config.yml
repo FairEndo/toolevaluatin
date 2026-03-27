@@ -1,12 +1,15 @@
 # CircleCI Configuration for CI Benchmark Runner
 #
-# Trigger via API (medium only):
+# Runs benchmarks on both Docker and machine (VM) executors to compare
+# container-overhead vs bare-metal performance on the same resource classes.
+#
+# Trigger via API (medium only — Docker + machine):
 #   curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
 #     -H "Circle-Token: $TOKEN" \
 #     -H "Content-Type: application/json" \
 #     -d '{"parameters": {"run_benchmark": true}}'
 #
-# Trigger via API (all resource classes):
+# Trigger via API (all resource classes — Docker + machine + macOS):
 #   curl -X POST "https://circleci.com/api/v2/project/gh/OWNER/REPO/pipeline" \
 #     -H "Circle-Token: $TOKEN" \
 #     -H "Content-Type: application/json" \
@@ -201,6 +204,95 @@ jobs:
       - persist-benchmark-result
 
   # ---------------------------------------------------------------------------
+  # Linux Machine (VM) jobs
+  #
+  # These are the bare-metal equivalents of the Docker jobs above.
+  # Machine executors run in a dedicated VM — no container overlay filesystem,
+  # no cgroup-imposed vCPU mismatch, no noisy-neighbor overhead from other
+  # containers sharing the same host.  Comparing Docker vs machine results
+  # for the same resource class isolates how much overhead Docker adds.
+  # ---------------------------------------------------------------------------
+  benchmark-machine-medium:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - clone-results-repo
+      - run-benchmark:
+          runner: machine.medium
+      - commit-and-push-results:
+          runner: machine.medium
+
+  benchmark-machine-medium-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: machine.medium
+      - persist-benchmark-result
+
+  benchmark-machine-large-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: machine.large
+      - persist-benchmark-result
+
+  benchmark-machine-xlarge-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: xlarge
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: machine.xlarge
+      - persist-benchmark-result
+
+  benchmark-machine-arm-medium-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: arm.medium
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: machine.arm.medium
+      - persist-benchmark-result
+
+  benchmark-machine-arm-large-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: arm.large
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: machine.arm.large
+      - persist-benchmark-result
+
+  # ---------------------------------------------------------------------------
   # macOS jobs (Apple Silicon — M4 Pro)
   # ---------------------------------------------------------------------------
   benchmark-macos-m4pro-medium-artifact:
@@ -253,13 +345,14 @@ jobs:
 # ---------------------------------------------------------------
 # Workflow Trigger Model:
 #
-#   1. Tag push of "view-benchmark" → all 7 resource classes
-#      (via tag-all-benchmarks workflow)
+#   1. Tag push of "view-benchmark" → all 12 resource class/executor
+#      combinations (via tag-all-benchmarks workflow)
 #
 #   2. API with run_benchmark: true → single medium benchmark
-#      (via run-benchmarks workflow)
+#      (Docker + machine, via run-benchmarks workflow)
 #
-#   3. API with run_benchmark: true, run_all: true → all 7 resource classes
+#   3. API with run_benchmark: true, run_all: true → all 12
+#      resource class/executor combinations
 #      (via run-all-benchmarks workflow)
 #
 # Note: The CircleCI project trigger must be set to "Tag pushes"
@@ -271,6 +364,7 @@ workflows:
     when:
       not: << pipeline.parameters.run_benchmark >>
     jobs:
+      # Docker
       - benchmark-medium-artifact:
           filters:
             tags:
@@ -301,6 +395,38 @@ workflows:
               only: /^view-benchmark$/
             branches:
               ignore: /.*/
+      # Machine (VM)
+      - benchmark-machine-medium-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-machine-large-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-machine-xlarge-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-machine-arm-medium-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-machine-arm-large-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      # macOS
       - benchmark-macos-m4pro-medium-artifact:
           filters:
             tags:
@@ -313,6 +439,7 @@ workflows:
               only: /^view-benchmark$/
             branches:
               ignore: /.*/
+      # Collect all results
       - collect-results:
           requires:
             - benchmark-medium-artifact
@@ -320,6 +447,11 @@ workflows:
             - benchmark-xlarge-artifact
             - benchmark-arm-medium-artifact
             - benchmark-arm-large-artifact
+            - benchmark-machine-medium-artifact
+            - benchmark-machine-large-artifact
+            - benchmark-machine-xlarge-artifact
+            - benchmark-machine-arm-medium-artifact
+            - benchmark-machine-arm-large-artifact
             - benchmark-macos-m4pro-medium-artifact
             - benchmark-macos-m4pro-large-artifact
           filters:
@@ -335,6 +467,7 @@ workflows:
         - not: << pipeline.parameters.run_all >>
     jobs:
       - benchmark-medium
+      - benchmark-machine-medium
 
   run-all-benchmarks:
     when:
@@ -342,13 +475,22 @@ workflows:
         - << pipeline.parameters.run_benchmark >>
         - << pipeline.parameters.run_all >>
     jobs:
+      # Docker
       - benchmark-medium-artifact
       - benchmark-large-artifact
       - benchmark-xlarge-artifact
       - benchmark-arm-medium-artifact
       - benchmark-arm-large-artifact
+      # Machine (VM)
+      - benchmark-machine-medium-artifact
+      - benchmark-machine-large-artifact
+      - benchmark-machine-xlarge-artifact
+      - benchmark-machine-arm-medium-artifact
+      - benchmark-machine-arm-large-artifact
+      # macOS
       - benchmark-macos-m4pro-medium-artifact
       - benchmark-macos-m4pro-large-artifact
+      # Collect all results
       - collect-results:
           requires:
             - benchmark-medium-artifact
@@ -356,5 +498,10 @@ workflows:
             - benchmark-xlarge-artifact
             - benchmark-arm-medium-artifact
             - benchmark-arm-large-artifact
+            - benchmark-machine-medium-artifact
+            - benchmark-machine-large-artifact
+            - benchmark-machine-xlarge-artifact
+            - benchmark-machine-arm-medium-artifact
+            - benchmark-machine-arm-large-artifact
             - benchmark-macos-m4pro-medium-artifact
             - benchmark-macos-m4pro-large-artifact

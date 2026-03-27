@@ -308,6 +308,77 @@ if [[ "$CAN_PARSE" == true ]]; then
       done
   fi
 
+  # -------------------------------------------------------------------------
+  # l. Network benchmark validation
+  # -------------------------------------------------------------------------
+  # Network has a similar structure to disk: composite + sub-tests
+  network_exists=$(jq_raw ".benchmarks.network != null")
+  if [[ "$network_exists" == "true" ]]; then
+      log "  Checking .benchmarks.network ..."
+
+      for sub in composite download latency; do
+          sub_exists=$(jq_raw ".benchmarks.network.${sub} != null")
+          if [[ "$sub_exists" != "true" ]]; then
+              fail ".benchmarks.network.${sub} is missing"
+              continue
+          fi
+
+          # median > 0
+          median_ok=$(jq_raw ".benchmarks.network.${sub}.median | if type == \"number\" and . > 0 then \"yes\" else \"no\" end")
+          if [[ "$median_ok" != "yes" ]]; then
+              fail ".benchmarks.network.${sub}.median must be a number > 0"
+          fi
+
+          # scores is non-empty array
+          scores_ok=$(jq_raw ".benchmarks.network.${sub}.scores | if type == \"array\" and length > 0 then \"yes\" else \"no\" end")
+          if [[ "$scores_ok" != "yes" ]]; then
+              fail ".benchmarks.network.${sub}.scores must be a non-empty array"
+          fi
+
+          # min <= median <= max
+          ordering_ok=$(jq_raw "
+              .benchmarks.network.${sub} |
+              if .min != null and .median != null and .max != null
+                 and .min <= .median and .median <= .max
+              then \"yes\" else \"no\" end
+          ")
+          if [[ "$ordering_ok" != "yes" ]]; then
+              min_v=$(jq_raw ".benchmarks.network.${sub}.min // \"null\"")
+              median_v=$(jq_raw ".benchmarks.network.${sub}.median // \"null\"")
+              max_v=$(jq_raw ".benchmarks.network.${sub}.max // \"null\"")
+              fail ".benchmarks.network.${sub}: ordering violation — min (${min_v}) <= median (${median_v}) <= max (${max_v}) does not hold"
+          fi
+
+          # stddev >= 0
+          stddev_ok=$(jq_raw ".benchmarks.network.${sub}.stddev | if type == \"number\" and . >= 0 then \"yes\" else \"no\" end")
+          if [[ "$stddev_ok" != "yes" ]]; then
+              fail ".benchmarks.network.${sub}.stddev must be a number >= 0"
+          fi
+      done
+
+      # Sanity: download throughput warnings
+      dl_median_ok=$(jq_raw ".benchmarks.network.download.median | if type == \"number\" and . > 0 then \"yes\" else \"no\" end")
+      if [[ "$dl_median_ok" == "yes" ]]; then
+          dl_median_val=$(jq_raw ".benchmarks.network.download.median")
+          dl_too_low=$(jq_raw ".benchmarks.network.download.median < 0.1")
+          if [[ "$dl_too_low" == "true" ]]; then
+              WARNINGS+=(".benchmarks.network.download.median is suspiciously low (${dl_median_val} MB/s)")
+              warn ".benchmarks.network.download.median is suspiciously low: ${dl_median_val} MB/s"
+          fi
+      fi
+
+      # Sanity: latency warnings
+      lat_median_ok=$(jq_raw ".benchmarks.network.latency.median | if type == \"number\" and . > 0 then \"yes\" else \"no\" end")
+      if [[ "$lat_median_ok" == "yes" ]]; then
+          lat_median_val=$(jq_raw ".benchmarks.network.latency.median")
+          lat_too_high=$(jq_raw ".benchmarks.network.latency.median > 5000")
+          if [[ "$lat_too_high" == "true" ]]; then
+              WARNINGS+=(".benchmarks.network.latency.median is suspiciously high (${lat_median_val} ms)")
+              warn ".benchmarks.network.latency.median is suspiciously high: ${lat_median_val} ms"
+          fi
+      fi
+  fi
+
 fi
 # End of parseable-JSON checks
 
@@ -345,6 +416,9 @@ if [[ "$CAN_PARSE" == true ]]; then
   [[ -n "$cpu_median" ]]  && summary_parts+=("cpu_median=${cpu_median}")
   [[ -n "$mem_median" ]]  && summary_parts+=("mem_median=${mem_median}")
   [[ -n "$disk_median" ]] && summary_parts+=("disk_composite_median=${disk_median}")
+
+  net_median=$(jq_raw '.benchmarks.network.composite.median // empty' 2>/dev/null || true)
+  [[ -n "$net_median" ]] && summary_parts+=("net_dl_median=${net_median}")
 fi
 
 log "Validation PASSED (${summary_parts[*]:-no details})"
