@@ -201,32 +201,32 @@ jobs:
       - persist-benchmark-result
 
   # ---------------------------------------------------------------------------
-  # macOS jobs (Apple Silicon — M1)
+  # macOS jobs (Apple Silicon — M4 Pro)
   # ---------------------------------------------------------------------------
-  benchmark-macos-m1-medium-artifact:
+  benchmark-macos-m4pro-medium-artifact:
     macos:
-      xcode: "16.2.0"
-    resource_class: macos.m1.medium.gen1
+      xcode: "26.3.0"
+    resource_class: m4pro.medium
     steps:
       - record-job-start
       - checkout
       - install-deps-macos
       - fetch-trigger-time
       - run-benchmark-local:
-          runner: macos.m1.medium.gen1
+          runner: m4pro.medium
       - persist-benchmark-result
 
-  benchmark-macos-m1-large-artifact:
+  benchmark-macos-m4pro-large-artifact:
     macos:
-      xcode: "16.2.0"
-    resource_class: macos.m1.large.gen1
+      xcode: "26.3.0"
+    resource_class: m4pro.large
     steps:
       - record-job-start
       - checkout
       - install-deps-macos
       - fetch-trigger-time
       - run-benchmark-local:
-          runner: macos.m1.large.gen1
+          runner: m4pro.large
       - persist-benchmark-result
 
   # ---------------------------------------------------------------------------
@@ -301,13 +301,13 @@ workflows:
               only: /^view-benchmark$/
             branches:
               ignore: /.*/
-      - benchmark-macos-m1-medium-artifact:
+      - benchmark-macos-m4pro-medium-artifact:
           filters:
             tags:
               only: /^view-benchmark$/
             branches:
               ignore: /.*/
-      - benchmark-macos-m1-large-artifact:
+      - benchmark-macos-m4pro-large-artifact:
           filters:
             tags:
               only: /^view-benchmark$/
@@ -320,8 +320,8 @@ workflows:
             - benchmark-xlarge-artifact
             - benchmark-arm-medium-artifact
             - benchmark-arm-large-artifact
-            - benchmark-macos-m1-medium-artifact
-            - benchmark-macos-m1-large-artifact
+            - benchmark-macos-m4pro-medium-artifact
+            - benchmark-macos-m4pro-large-artifact
           filters:
             tags:
               only: /^view-benchmark$/
@@ -347,8 +347,8 @@ workflows:
       - benchmark-xlarge-artifact
       - benchmark-arm-medium-artifact
       - benchmark-arm-large-artifact
-      - benchmark-macos-m1-medium-artifact
-      - benchmark-macos-m1-large-artifact
+      - benchmark-macos-m4pro-medium-artifact
+      - benchmark-macos-m4pro-large-artifact
       - collect-results:
           requires:
             - benchmark-medium-artifact
@@ -356,5 +356,5 @@ workflows:
             - benchmark-xlarge-artifact
             - benchmark-arm-medium-artifact
             - benchmark-arm-large-artifact
-            - benchmark-macos-m1-medium-artifact
-            - benchmark-macos-m1-large-artifact
+            - benchmark-macos-m4pro-medium-artifact
+            - benchmark-macos-m4pro-large-artifact
