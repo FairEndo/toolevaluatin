@@ -55,7 +55,6 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
 | **Tool** | `sysbench` (free, open source, one-liner install) |
 | **Command** | `sysbench cpu --cpu-max-prime=20000 --threads=1 run` |
 | **Metric** | Events per second (higher = faster) |
-| **Warmup** | 1 throwaway iteration before measured runs (stabilizes CPU frequency/caches) |
 | **Iterations** | 5 measured runs per invocation |
 | **Statistics** | Median, min, max, standard deviation |
 | **Additional data** | Processor model, vCPU count, total RAM, system load average |
@@ -67,7 +66,6 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
 | **Tool** | `sysbench` (same as CPU — single install) |
 | **Command** | `sysbench memory --memory-block-size=1K --memory-total-size=10G --threads=1 run` |
 | **Metric** | MiB/sec (higher = faster) |
-| **Warmup** | 1 throwaway iteration before measured runs |
 | **Iterations** | 5 measured runs per invocation |
 | **Statistics** | Median, min, max, standard deviation |
 
@@ -79,7 +77,6 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
 | **Sub-tests** | Sequential read (MB/s), sequential write (MB/s), random read (IOPS), random write (IOPS) |
 | **Composite** | Geometric mean of all 4 sub-test scores |
 | **Runtime** | 5 seconds per sub-test per iteration (default) |
-| **Warmup** | 1 throwaway iteration before measured runs |
 | **Iterations** | 5 measured runs per invocation |
 | **Statistics** | Median, min, max, standard deviation (per sub-test and composite) |
 | **Notes** | Direct I/O on Linux (`--direct=1`), buffered on macOS. Uses `psync` ioengine. |
@@ -91,7 +88,6 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
 | **Tool** | `make` (builds Redis 7.2.7 from source) |
 | **Command** | `make -j<cores>` (cgroups-aware core detection) |
 | **Metric** | Wall-clock seconds (lower = faster) |
-| **Warmup** | 1 full build before measured runs (primes filesystem caches) |
 | **Iterations** | 5 measured builds per invocation |
 | **Statistics** | Median, min, max, standard deviation |
 | **Notes** | Downloads tarball once, re-extracts for each iteration. Tests real-world multi-core throughput. |
@@ -105,7 +101,6 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
 | **Composite** | Download throughput (the primary metric for CI pipeline speed) |
 | **Endpoint** | Cloudflare speed-test CDN (globally distributed), with Hetzner fallback |
 | **Download size** | 25 MiB (26214400 bytes) — large enough to saturate the pipe, small enough to finish quickly |
-| **Warmup** | 1 throwaway iteration before measured runs (primes DNS + TCP + TLS) |
 | **Iterations** | 5 measured runs per invocation |
 | **Statistics** | Median, min, max, standard deviation (for both throughput and latency) |
 | **Override** | Set `CI_BENCH_NETWORK_URL` for runners with restricted egress or private endpoints |
@@ -184,12 +179,11 @@ All result artifacts live in the **separate `ci-benchmark-results` repository**,
 ## Configuration
 
 - **Source of truth**: `config/benchmarks.yml` (flat key-value format)
-- **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_RESULTS_DIR`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_CPU_WARMUP`, `CI_BENCH_MEMORY_*`, `CI_BENCH_DISK_*`, `CI_BENCH_COMPILE_*`, `CI_BENCH_NETWORK_*`
+- **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_RESULTS_DIR`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_MEMORY_*`, `CI_BENCH_DISK_*`, `CI_BENCH_COMPILE_*`, `CI_BENCH_NETWORK_*`
 - **`CI_BENCH_RESULTS_DIR`**: When set, `run.sh` writes results and dashboard data to this directory instead of the benchmarking repo. All CI configs set this to a clone of the `ci-benchmark-results` repo.
 
 ## Robustness Features
 
-- **Warmup iteration** prevents cold-start measurement noise
 - **5 iterations** with median gives stable signal resistant to outliers
 - **Standard deviation** exposes noisy-neighbor environments
 - **System load recording** helps flag anomalous runs after the fact

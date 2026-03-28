@@ -118,22 +118,9 @@ fi
 echo "Using ${JOBS} parallel job(s)" >&2
 
 # ---------------------------------------------------------------------------
-# Warmup
-# ---------------------------------------------------------------------------
-scores=()
-
-echo "Warmup: building Redis (included)..." >&2
-tar xzf "$TARBALL" -C "$WORK_DIR"
-START=$(get_time)
-make -j"$JOBS" -C "$BUILD_DIR" > /dev/null 2>&1
-END=$(get_time)
-score=$(awk "BEGIN {printf \"%.2f\", $END - $START}")
-scores+=("$score")
-echo "  -> ${score} seconds (included)" >&2
-
-# ---------------------------------------------------------------------------
 # Measured runs
 # ---------------------------------------------------------------------------
+scores=()
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running compile benchmark (iteration ${i}/${iterations})..." >&2

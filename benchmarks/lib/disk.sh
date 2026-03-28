@@ -5,12 +5,11 @@ set -euo pipefail
 # disk.sh — Disk I/O benchmark driver (fio)
 #
 # Usage:
-#   disk.sh <iterations> [runtime_secs] [warmup]
+#   disk.sh <iterations> [runtime_secs]
 #
 # Arguments:
 #   iterations    Number of measured runs
 #   runtime_secs  How long each fio sub-test runs per iteration (default: 5)
-#   warmup        "true" or "false" — run one warmup iteration first (default: true, included in results)
 #
 # Runs 4 sub-tests per iteration:
 #   1. Sequential read  (MB/s)
@@ -28,13 +27,12 @@ set -euo pipefail
 # Arguments
 # ---------------------------------------------------------------------------
 if [[ $# -lt 1 ]]; then
-  echo "Usage: disk.sh <iterations> [runtime_secs] [warmup]" >&2
+  echo "Usage: disk.sh <iterations> [runtime_secs]" >&2
   exit 1
 fi
 
 iterations="$1"
 runtime="${2:-5}"
-warmup="${3:-true}"
 
 if ! [[ "$iterations" =~ ^[1-9][0-9]*$ ]]; then
   echo "Error: iterations must be a positive integer, got '${iterations}'" >&2
@@ -150,37 +148,13 @@ calc_stats() {
 }
 
 # ---------------------------------------------------------------------------
-# Warmup
+# Measured runs
 # ---------------------------------------------------------------------------
 all_seq_read=()
 all_seq_write=()
 all_rand_read=()
 all_rand_write=()
 all_composite=()
-
-if [[ "$warmup" == "true" ]]; then
-  echo "Warmup: running warmup iteration..." >&2
-  warmup_result=$(run_once)
-  read -r sr sw rr rw <<< "$warmup_result"
-
-  all_seq_read+=("$sr")
-  all_seq_write+=("$sw")
-  all_rand_read+=("$rr")
-  all_rand_write+=("$rw")
-
-  composite=$(awk "BEGIN { printf \"%.2f\", ($sr * $sw * $rr * $rw) ^ 0.25 }")
-  all_composite+=("$composite")
-
-  echo "  seq_read: ${sr} MB/s" >&2
-  echo "  seq_write: ${sw} MB/s" >&2
-  echo "  rand_read: ${rr} IOPS" >&2
-  echo "  rand_write: ${rw} IOPS" >&2
-  echo "  composite: ${composite} (included)" >&2
-fi
-
-# ---------------------------------------------------------------------------
-# Measured runs
-# ---------------------------------------------------------------------------
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running disk benchmark (iteration ${i}/${iterations})..." >&2

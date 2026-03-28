@@ -5,12 +5,11 @@ set -euo pipefail
 # cpu.sh — CPU benchmark driver (sysbench)
 #
 # Usage:
-#   cpu.sh <iterations> [cpu_max_prime] [warmup]
+#   cpu.sh <iterations> [cpu_max_prime]
 #
 # Arguments:
 #   iterations     Number of measured runs
 #   cpu_max_prime  Upper limit for prime-number generation (default: 20000)
-#   warmup         "true" or "false" — run one warmup iteration first (default: true, included in results)
 #
 # Stdout:  single JSON object with results
 # Stderr:  human-readable progress messages
@@ -20,13 +19,12 @@ set -euo pipefail
 # Arguments
 # ---------------------------------------------------------------------------
 if [[ $# -lt 1 ]]; then
-  echo "Usage: cpu.sh <iterations> [cpu_max_prime] [warmup]" >&2
+  echo "Usage: cpu.sh <iterations> [cpu_max_prime]" >&2
   exit 1
 fi
 
 iterations="$1"
 cpu_max_prime="${2:-20000}"
-warmup="${3:-true}"
 
 if ! [[ "$iterations" =~ ^[1-9][0-9]*$ ]]; then
   echo "Error: iterations must be a positive integer, got '${iterations}'" >&2
@@ -62,20 +60,9 @@ run_once() {
 }
 
 # ---------------------------------------------------------------------------
-# Warmup
-# ---------------------------------------------------------------------------
-scores=()
-
-if [[ "$warmup" == "true" ]]; then
-  echo "Warmup: running warmup iteration..." >&2
-  warmup_score=$(run_once)
-  scores+=("$warmup_score")
-  echo "  -> ${warmup_score} events/sec (included)" >&2
-fi
-
-# ---------------------------------------------------------------------------
 # Measured runs
 # ---------------------------------------------------------------------------
+scores=()
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running CPU benchmark (iteration ${i}/${iterations})..." >&2

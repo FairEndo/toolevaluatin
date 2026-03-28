@@ -5,12 +5,11 @@ set -euo pipefail
 # network.sh — Network I/O benchmark driver (curl download throughput)
 #
 # Usage:
-#   network.sh <iterations> [download_bytes] [warmup]
+#   network.sh <iterations> [download_bytes]
 #
 # Arguments:
 #   iterations      Number of measured runs
 #   download_bytes  Size of the test download in bytes (default: 26214400 = 25 MiB)
-#   warmup          "true" or "false" — run one warmup iteration first (default: true, included in results)
 #
 # Runs 2 sub-tests per iteration:
 #   1. Download throughput  (MB/s) — sustained transfer from a CDN endpoint
@@ -35,13 +34,12 @@ set -euo pipefail
 # Arguments
 # ---------------------------------------------------------------------------
 if [[ $# -lt 1 ]]; then
-  echo "Usage: network.sh <iterations> [download_bytes] [warmup]" >&2
+  echo "Usage: network.sh <iterations> [download_bytes]" >&2
   exit 1
 fi
 
 iterations="$1"
 download_bytes="${2:-26214400}"   # 25 MiB
-warmup="${3:-true}"
 
 if ! [[ "$iterations" =~ ^[1-9][0-9]*$ ]]; then
   echo "Error: iterations must be a positive integer, got '${iterations}'" >&2
@@ -216,23 +214,10 @@ calc_stats() {
 }
 
 # ---------------------------------------------------------------------------
-# Warmup
+# Measured runs
 # ---------------------------------------------------------------------------
 all_download=()
 all_latency=()
-
-if [[ "$warmup" == "true" ]]; then
-  echo "Warmup: running warmup iteration..." >&2
-  warmup_result=$(run_once)
-  read -r warmup_dl warmup_lat <<< "$warmup_result"
-  all_download+=("$warmup_dl")
-  all_latency+=("$warmup_lat")
-  echo "  -> ${warmup_dl} MB/s download, ${warmup_lat} ms TTFB (included)" >&2
-fi
-
-# ---------------------------------------------------------------------------
-# Measured runs
-# ---------------------------------------------------------------------------
 
 for ((i = 1; i <= iterations; i++)); do
   echo "Running network benchmark (iteration ${i}/${iterations})..." >&2

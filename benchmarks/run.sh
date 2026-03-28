@@ -14,12 +14,10 @@ set -euo pipefail
 #   CI_BENCH_CPU_ENABLED         — "true" / "false"
 #   CI_BENCH_ITERATIONS          — number of measured iterations
 #   CI_BENCH_CPU_MAX_PRIME       — sysbench cpu-max-prime parameter
-#   CI_BENCH_CPU_WARMUP          — "true" / "false"
 #   CI_BENCH_MEMORY_ENABLED      — "true" / "false"
 #   CI_BENCH_MEMORY_ITERATIONS   — number of measured iterations (memory)
 #   CI_BENCH_MEMORY_BLOCK_SIZE   — sysbench memory-block-size parameter
 #   CI_BENCH_MEMORY_TOTAL_SIZE   — sysbench memory-total-size parameter
-#   CI_BENCH_MEMORY_WARMUP       — "true" / "false"
 #   CI_BENCH_RESULTS_DIR             — path to external results repository root
 ###############################################################################
 
@@ -140,65 +138,53 @@ if [[ -f "$CONFIG_FILE" ]]; then
     CFG_CPU_ENABLED="$(yaml_get  "$CONFIG_FILE" "cpu_enabled"   "true")"
     CFG_ITERATIONS="$(yaml_get   "$CONFIG_FILE" "cpu_iterations" "5")"
     CFG_CPU_MAX_PRIME="$(yaml_get "$CONFIG_FILE" "cpu_max_prime" "20000")"
-    CFG_CPU_WARMUP="$(yaml_get   "$CONFIG_FILE" "cpu_warmup"    "true")"
     CFG_MEMORY_ENABLED="$(yaml_get    "$CONFIG_FILE" "memory_enabled"    "true")"
     CFG_MEMORY_ITERATIONS="$(yaml_get "$CONFIG_FILE" "memory_iterations" "5")"
     CFG_MEMORY_BLOCK_SIZE="$(yaml_get "$CONFIG_FILE" "memory_block_size" "1K")"
     CFG_MEMORY_TOTAL_SIZE="$(yaml_get "$CONFIG_FILE" "memory_total_size" "10G")"
-    CFG_MEMORY_WARMUP="$(yaml_get     "$CONFIG_FILE" "memory_warmup"     "true")"
     CFG_DISK_ENABLED="$(yaml_get      "$CONFIG_FILE" "disk_enabled"      "true")"
     CFG_DISK_ITERATIONS="$(yaml_get   "$CONFIG_FILE" "disk_iterations"   "5")"
     CFG_DISK_RUNTIME="$(yaml_get      "$CONFIG_FILE" "disk_runtime"      "5")"
-    CFG_DISK_WARMUP="$(yaml_get       "$CONFIG_FILE" "disk_warmup"       "true")"
     CFG_COMPILE_ENABLED="$(yaml_get  "$CONFIG_FILE" "compile_enabled"    "true")"
     CFG_COMPILE_ITERATIONS="$(yaml_get "$CONFIG_FILE" "compile_iterations" "5")"
     CFG_NETWORK_ENABLED="$(yaml_get       "$CONFIG_FILE" "network_enabled"        "true")"
     CFG_NETWORK_ITERATIONS="$(yaml_get    "$CONFIG_FILE" "network_iterations"     "5")"
     CFG_NETWORK_DOWNLOAD_BYTES="$(yaml_get "$CONFIG_FILE" "network_download_bytes" "26214400")"
-    CFG_NETWORK_WARMUP="$(yaml_get        "$CONFIG_FILE" "network_warmup"         "true")"
 else
     log "  Config file not found — using defaults"
     CFG_CPU_ENABLED="true"
     CFG_ITERATIONS="5"
     CFG_CPU_MAX_PRIME="20000"
-    CFG_CPU_WARMUP="true"
     CFG_MEMORY_ENABLED="true"
     CFG_MEMORY_ITERATIONS="5"
     CFG_MEMORY_BLOCK_SIZE="1K"
     CFG_MEMORY_TOTAL_SIZE="10G"
-    CFG_MEMORY_WARMUP="true"
     CFG_DISK_ENABLED="true"
     CFG_DISK_ITERATIONS="5"
     CFG_DISK_RUNTIME="5"
-    CFG_DISK_WARMUP="true"
     CFG_COMPILE_ENABLED="true"
     CFG_COMPILE_ITERATIONS="5"
     CFG_NETWORK_ENABLED="true"
     CFG_NETWORK_ITERATIONS="5"
     CFG_NETWORK_DOWNLOAD_BYTES="26214400"
-    CFG_NETWORK_WARMUP="true"
 fi
 
 # Environment variable overrides take precedence
 CPU_ENABLED="${CI_BENCH_CPU_ENABLED:-$CFG_CPU_ENABLED}"
 ITERATIONS="${CI_BENCH_ITERATIONS:-$CFG_ITERATIONS}"
 CPU_MAX_PRIME="${CI_BENCH_CPU_MAX_PRIME:-$CFG_CPU_MAX_PRIME}"
-CPU_WARMUP="${CI_BENCH_CPU_WARMUP:-$CFG_CPU_WARMUP}"
 MEMORY_ENABLED="${CI_BENCH_MEMORY_ENABLED:-$CFG_MEMORY_ENABLED}"
 MEMORY_ITERATIONS="${CI_BENCH_MEMORY_ITERATIONS:-$CFG_MEMORY_ITERATIONS}"
 MEMORY_BLOCK_SIZE="${CI_BENCH_MEMORY_BLOCK_SIZE:-$CFG_MEMORY_BLOCK_SIZE}"
 MEMORY_TOTAL_SIZE="${CI_BENCH_MEMORY_TOTAL_SIZE:-$CFG_MEMORY_TOTAL_SIZE}"
-MEMORY_WARMUP="${CI_BENCH_MEMORY_WARMUP:-$CFG_MEMORY_WARMUP}"
 DISK_ENABLED="${CI_BENCH_DISK_ENABLED:-$CFG_DISK_ENABLED}"
 DISK_ITERATIONS="${CI_BENCH_DISK_ITERATIONS:-$CFG_DISK_ITERATIONS}"
 DISK_RUNTIME="${CI_BENCH_DISK_RUNTIME:-$CFG_DISK_RUNTIME}"
-DISK_WARMUP="${CI_BENCH_DISK_WARMUP:-$CFG_DISK_WARMUP}"
 COMPILE_ENABLED="${CI_BENCH_COMPILE_ENABLED:-$CFG_COMPILE_ENABLED}"
 COMPILE_ITERATIONS="${CI_BENCH_COMPILE_ITERATIONS:-$CFG_COMPILE_ITERATIONS}"
 NETWORK_ENABLED="${CI_BENCH_NETWORK_ENABLED:-$CFG_NETWORK_ENABLED}"
 NETWORK_ITERATIONS="${CI_BENCH_NETWORK_ITERATIONS:-$CFG_NETWORK_ITERATIONS}"
 NETWORK_DOWNLOAD_BYTES="${CI_BENCH_NETWORK_DOWNLOAD_BYTES:-$CFG_NETWORK_DOWNLOAD_BYTES}"
-NETWORK_WARMUP="${CI_BENCH_NETWORK_WARMUP:-$CFG_NETWORK_WARMUP}"
 PROVIDER="${CI_BENCH_PROVIDER:-unknown}"
 RUNNER="${CI_BENCH_RUNNER:-default}"
 
@@ -207,22 +193,18 @@ log "  runner             = ${RUNNER}"
 log "  cpu_enabled        = ${CPU_ENABLED}"
 log "  iterations         = ${ITERATIONS}"
 log "  cpu_max_prime      = ${CPU_MAX_PRIME}"
-log "  cpu_warmup         = ${CPU_WARMUP}"
 log "  memory_enabled     = ${MEMORY_ENABLED}"
 log "  memory_iterations  = ${MEMORY_ITERATIONS}"
 log "  memory_block_size  = ${MEMORY_BLOCK_SIZE}"
 log "  memory_total_size  = ${MEMORY_TOTAL_SIZE}"
-log "  memory_warmup      = ${MEMORY_WARMUP}"
 log "  disk_enabled       = ${DISK_ENABLED}"
 log "  disk_iterations    = ${DISK_ITERATIONS}"
 log "  disk_runtime       = ${DISK_RUNTIME}"
-log "  disk_warmup        = ${DISK_WARMUP}"
 log "  compile_enabled    = ${COMPILE_ENABLED}"
 log "  compile_iterations = ${COMPILE_ITERATIONS}"
 log "  network_enabled    = ${NETWORK_ENABLED}"
 log "  network_iterations = ${NETWORK_ITERATIONS}"
 log "  network_dl_bytes   = ${NETWORK_DOWNLOAD_BYTES}"
-log "  network_warmup     = ${NETWORK_WARMUP}"
 
 # ---------------------------------------------------------------------------
 # Collect system information
@@ -310,10 +292,10 @@ if [[ "${CPU_ENABLED}" == "true" ]]; then
 
     if [[ -f "$CPU_SCRIPT" ]]; then
         # Delegate to the library script (call with bash to avoid executable-bit issues).
-        # cpu.sh <iterations> [cpu_max_prime] [warmup]
+        # cpu.sh <iterations> [cpu_max_prime]
         # Stdout = JSON result, stderr = progress messages (shown in CI logs).
-        debug_log "Calling: bash $CPU_SCRIPT $ITERATIONS $CPU_MAX_PRIME $CPU_WARMUP"
-        CPU_JSON="$(bash "$CPU_SCRIPT" "$ITERATIONS" "$CPU_MAX_PRIME" "$CPU_WARMUP")" || {
+        debug_log "Calling: bash $CPU_SCRIPT $ITERATIONS $CPU_MAX_PRIME"
+        CPU_JSON="$(bash "$CPU_SCRIPT" "$ITERATIONS" "$CPU_MAX_PRIME")" || {
             log "  WARNING: cpu.sh failed — falling back to direct sysbench"
             CPU_JSON=""
         }
@@ -323,16 +305,6 @@ if [[ "${CPU_ENABLED}" == "true" ]]; then
     if [[ -z "$CPU_JSON" ]] && command -v sysbench &>/dev/null; then
         log "  Using inline sysbench fallback..."
         CPU_SCORES=()
-
-        # Warmup
-        if [[ "$CPU_WARMUP" == "true" ]]; then
-            log "  Warmup: running warmup iteration..."
-            score="$(sysbench cpu --cpu-max-prime="$CPU_MAX_PRIME" --threads=1 run \
-                | grep -i 'events per second' \
-                | awk -F':' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')" || score="0"
-            CPU_SCORES+=("$score")
-            log "    score = ${score} (included)"
-        fi
 
         for (( i = 1; i <= ITERATIONS; i++ )); do
             log "  iteration ${i}/${ITERATIONS}"
@@ -395,10 +367,10 @@ if [[ "${MEMORY_ENABLED}" == "true" ]]; then
 
     if [[ -f "$MEMORY_SCRIPT" ]]; then
         # Delegate to the library script (call with bash to avoid executable-bit issues).
-        # memory.sh <iterations> [memory_block_size] [memory_total_size] [warmup]
+        # memory.sh <iterations> [memory_block_size] [memory_total_size]
         # Stdout = JSON result, stderr = progress messages (shown in CI logs).
-        debug_log "Calling: bash $MEMORY_SCRIPT $MEMORY_ITERATIONS $MEMORY_BLOCK_SIZE $MEMORY_TOTAL_SIZE $MEMORY_WARMUP"
-        MEMORY_JSON="$(bash "$MEMORY_SCRIPT" "$MEMORY_ITERATIONS" "$MEMORY_BLOCK_SIZE" "$MEMORY_TOTAL_SIZE" "$MEMORY_WARMUP")" || {
+        debug_log "Calling: bash $MEMORY_SCRIPT $MEMORY_ITERATIONS $MEMORY_BLOCK_SIZE $MEMORY_TOTAL_SIZE"
+        MEMORY_JSON="$(bash "$MEMORY_SCRIPT" "$MEMORY_ITERATIONS" "$MEMORY_BLOCK_SIZE" "$MEMORY_TOTAL_SIZE")" || {
             log "  WARNING: memory.sh failed — falling back to direct sysbench"
             MEMORY_JSON=""
         }
@@ -408,18 +380,6 @@ if [[ "${MEMORY_ENABLED}" == "true" ]]; then
     if [[ -z "$MEMORY_JSON" ]] && command -v sysbench &>/dev/null; then
         log "  Using inline sysbench fallback..."
         MEM_SCORES=()
-
-        # Warmup
-        if [[ "$MEMORY_WARMUP" == "true" ]]; then
-            log "  Warmup: running warmup iteration..."
-            score="$(sysbench memory --memory-block-size="$MEMORY_BLOCK_SIZE" --memory-total-size="$MEMORY_TOTAL_SIZE" --threads=1 run \
-                | grep -oE '[0-9]+\.?[0-9]*[[:space:]]*MiB/sec' \
-                | grep -oE '[0-9]+\.?[0-9]*' \
-                | head -n1)" || score="0"
-            [[ -z "$score" ]] && score="0"
-            MEM_SCORES+=("$score")
-            log "    score = ${score} (included)"
-        fi
 
         for (( i = 1; i <= MEMORY_ITERATIONS; i++ )); do
             log "  iteration ${i}/${MEMORY_ITERATIONS}"
@@ -484,10 +444,10 @@ if [[ "${DISK_ENABLED}" == "true" ]]; then
 
     if [[ -f "$DISK_SCRIPT" ]]; then
         # Delegate to the library script (call with bash to avoid executable-bit issues).
-        # disk.sh <iterations> <runtime> <warmup>
+        # disk.sh <iterations> <runtime>
         # Stdout = JSON result, stderr = progress messages (shown in CI logs).
-        debug_log "Calling: bash $DISK_SCRIPT $DISK_ITERATIONS $DISK_RUNTIME $DISK_WARMUP"
-        DISK_JSON="$(bash "$DISK_SCRIPT" "$DISK_ITERATIONS" "$DISK_RUNTIME" "$DISK_WARMUP")" || {
+        debug_log "Calling: bash $DISK_SCRIPT $DISK_ITERATIONS $DISK_RUNTIME"
+        DISK_JSON="$(bash "$DISK_SCRIPT" "$DISK_ITERATIONS" "$DISK_RUNTIME")" || {
             log "  WARNING: disk.sh failed"
             DISK_JSON=""
         }
@@ -548,8 +508,8 @@ if [[ "${NETWORK_ENABLED}" == "true" ]]; then
     NETWORK_JSON=""
 
     if [[ -f "$NETWORK_SCRIPT" ]]; then
-        debug_log "Calling: bash $NETWORK_SCRIPT $NETWORK_ITERATIONS $NETWORK_DOWNLOAD_BYTES $NETWORK_WARMUP"
-        NETWORK_JSON="$(bash "$NETWORK_SCRIPT" "$NETWORK_ITERATIONS" "$NETWORK_DOWNLOAD_BYTES" "$NETWORK_WARMUP")" || {
+        debug_log "Calling: bash $NETWORK_SCRIPT $NETWORK_ITERATIONS $NETWORK_DOWNLOAD_BYTES"
+        NETWORK_JSON="$(bash "$NETWORK_SCRIPT" "$NETWORK_ITERATIONS" "$NETWORK_DOWNLOAD_BYTES")" || {
             log "  WARNING: network.sh failed"
             NETWORK_JSON=""
         }

@@ -8,7 +8,6 @@
 cpu_enabled: true
 cpu_iterations: 5
 cpu_max_prime: 20000
-cpu_warmup: true
 # Note: threads fixed at 1 for single-core comparison across providers.
 
 # --- Memory Benchmark ---
@@ -16,14 +15,12 @@ memory_enabled: true
 memory_iterations: 5
 memory_block_size: 1K
 memory_total_size: 10G
-memory_warmup: true
 # Note: threads fixed at 1 for single-core comparison across providers.
 
 # --- Disk I/O Benchmark ---
 disk_enabled: true
 disk_iterations: 5
 disk_runtime: 5
-disk_warmup: true
 # Note: threads fixed at 1 for single-core comparison across providers.
 # Uses fio with psync ioengine. Direct I/O on Linux only (not supported on macOS).
 
@@ -36,7 +33,6 @@ compile_iterations: 5
 network_enabled: true
 network_iterations: 5
 network_download_bytes: 26214400
-network_warmup: true
 # Note: measures download throughput (MB/s) and latency/TTFB (ms) via curl.
 # Uses Cloudflare speed-test CDN by default. Override with CI_BENCH_NETWORK_URL.
 # 26214400 bytes = 25 MiB — large enough to saturate the pipe, small enough to finish quickly.

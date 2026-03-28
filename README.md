@@ -140,8 +140,7 @@ All CI configs are thin wrappers that call a single script:
 1. **CI installs dependencies** (`sysbench`, `jq`, `fio`, `build-essential`)
 2. **CI calls `./benchmarks/run.sh`** with env vars identifying the provider
 3. **`run.sh` reads config** from `config/benchmarks.yml`
-4. **Warmup** — one throwaway iteration to stabilize CPU frequency/caches
-5. **Benchmarks execute** — CPU, memory, disk I/O, compile, and network — 5 measured iterations (default), collecting median, min, max, and stddev
+4. **Benchmarks execute** — CPU, memory, disk I/O, compile, and network — 5 measured iterations (default), collecting median, min, max, and stddev
 6. **Results are saved** as JSON to `results/raw/` and a summary is generated at `results/summary.md` in the **results repository**
 7. **CI commits and pushes** the results to a separate `ci-benchmark-results` repository
 
@@ -167,22 +166,18 @@ Override per-run via environment variables:
 | `CI_BENCH_CPU_ENABLED` | Enable/disable CPU benchmark | `true` |
 | `CI_BENCH_ITERATIONS` | Number of measured iterations (CPU) | `5` |
 | `CI_BENCH_CPU_MAX_PRIME` | Sysbench cpu-max-prime parameter | `20000` |
-| `CI_BENCH_CPU_WARMUP` | Run a warmup iteration before measuring (CPU) | `true` |
 | `CI_BENCH_MEMORY_ENABLED` | Enable/disable memory benchmark | `true` |
 | `CI_BENCH_MEMORY_ITERATIONS` | Number of measured iterations (memory) | `5` |
 | `CI_BENCH_MEMORY_BLOCK_SIZE` | Sysbench memory-block-size parameter | `1K` |
 | `CI_BENCH_MEMORY_TOTAL_SIZE` | Sysbench memory-total-size parameter | `10G` |
-| `CI_BENCH_MEMORY_WARMUP` | Run a warmup iteration before measuring (memory) | `true` |
 | `CI_BENCH_DISK_ENABLED` | Enable/disable disk I/O benchmark | `true` |
 | `CI_BENCH_DISK_ITERATIONS` | Number of measured iterations (disk) | `5` |
 | `CI_BENCH_DISK_RUNTIME` | Runtime in seconds per fio sub-test | `5` |
-| `CI_BENCH_DISK_WARMUP` | Run a warmup iteration before measuring (disk) | `true` |
 | `CI_BENCH_COMPILE_ENABLED` | Enable/disable compile benchmark | `true` |
 | `CI_BENCH_COMPILE_ITERATIONS` | Number of measured builds (compile) | `5` |
 | `CI_BENCH_NETWORK_ENABLED` | Enable/disable network benchmark | `true` |
 | `CI_BENCH_NETWORK_ITERATIONS` | Number of measured iterations (network) | `5` |
 | `CI_BENCH_NETWORK_DOWNLOAD_BYTES` | Size of the test download in bytes | `26214400` (25 MiB) |
-| `CI_BENCH_NETWORK_WARMUP` | Run a warmup iteration before measuring (network) | `true` |
 | `CI_BENCH_NETWORK_URL` | Override the download test URL (for restricted egress) | (auto-detected) |
 
 ## Results Repository Setup
