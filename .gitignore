@@ -15,4 +15,3 @@ Thumbs.db
 
 # Benchmark results (stored in a separate ci-benchmark-results repo)
 results/
-docs/data.json

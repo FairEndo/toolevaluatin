@@ -23,8 +23,7 @@ set -euo pipefail
 # What this script does:
 #   1. Copies new result JSON files into results/raw/
 #   2. Regenerates results/summary.md from ALL raw files
-#   3. Regenerates docs/data.json from ALL raw files
-#   4. Commits and pushes via scripts/push-results.sh
+#   3. Commits and pushes via scripts/push-results.sh
 
 # ---------------------------------------------------------------------------
 # Arguments & defaults
@@ -211,24 +210,7 @@ TOTAL_RUNS=$(find "$RAW_DIR" -name '*.json' -type f 2>/dev/null | wc -l | tr -d 
 log "  Summary written to ${SUMMARY_FILE} (${TOTAL_RUNS} total runs)"
 
 # ---------------------------------------------------------------------------
-# 5. Regenerate docs/data.json
-# ---------------------------------------------------------------------------
-log "Regenerating docs/data.json ..."
-
-DOCS_DIR="${RESULTS_CLONE_DIR}/docs"
-mkdir -p "$DOCS_DIR"
-
-if compgen -G "${RAW_DIR}/*.json" > /dev/null; then
-  jq -s 'sort_by(.timestamp) | reverse' "${RAW_DIR}"/*.json > "${DOCS_DIR}/data.json"
-  DATA_ENTRIES=$(jq 'length' "${DOCS_DIR}/data.json")
-  log "  Dashboard data written (${DATA_ENTRIES} entries)"
-else
-  echo '[]' > "${DOCS_DIR}/data.json"
-  log "  No raw data — wrote empty array"
-fi
-
-# ---------------------------------------------------------------------------
-# 6. Push results using the shared script
+# 5. Push results using the shared script
 # ---------------------------------------------------------------------------
 log "Handing off to push-results.sh ..."
 

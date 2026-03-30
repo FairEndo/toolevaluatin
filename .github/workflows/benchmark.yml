@@ -60,7 +60,6 @@ jobs:
           CI_BENCH_JOB_STARTED_AT: ${{ env.CI_BENCH_JOB_STARTED_AT }}
         run: |
           mkdir -p /tmp/benchmark-output/results/raw
-          mkdir -p /tmp/benchmark-output/docs
           bash benchmarks/run.sh
 
       - name: Upload result artifact

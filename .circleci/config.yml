@@ -108,7 +108,6 @@ commands:
             CI_BENCH_RESULTS_DIR: /tmp/benchmark-output
           command: |
             mkdir -p /tmp/benchmark-output/results/raw
-            mkdir -p /tmp/benchmark-output/docs
             bash benchmarks/run.sh
 
   persist-benchmark-result:

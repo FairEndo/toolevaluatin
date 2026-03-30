@@ -78,10 +78,10 @@ log "Configured git user: CI Benchmark Bot <ci-benchmark-bot@users.noreply.githu
 debug_cmd "git status before staging" git status
 
 # ---------------------------------------------------------------------------
-# 5. Stage results/ and docs/
+# 5. Stage results/
 # ---------------------------------------------------------------------------
-log "Staging results/ and docs/ ..."
-git add results/ docs/
+log "Staging results/ ..."
+git add results/
 log "Staging complete"
 
 # ---------------------------------------------------------------------------
@@ -172,8 +172,8 @@ for attempt in $(seq 1 "$MAX_PUSH_ATTEMPTS"); do
     fi
 
     # Resolve by keeping our versions of generated files
-    git checkout --theirs results/ docs/ 2>/dev/null || true
-    git add results/ docs/
+    git checkout --theirs results/ 2>/dev/null || true
+    git add results/
 
     # Attempt to continue the rebase
     continue_output=""

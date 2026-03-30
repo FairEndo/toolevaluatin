@@ -187,7 +187,7 @@ Benchmark results are stored in a separate GitHub repository to keep this repo f
 ### Setup
 
 1. Create a new GitHub repository named `ci-benchmark-results` (under the same owner)
-2. Initialize it with a `results/raw/` directory and copy `docs/index.html` from this repo
+2. Initialize it with a `results/raw/` directory
 3. Create a GitHub Personal Access Token (PAT) with `repo` scope (or fine-grained with push access to the results repo)
 4. Add the token as a secret in each CI provider:
    - **GitHub Actions**: Add `RESULTS_REPO_TOKEN` as a repository secret
@@ -227,7 +227,7 @@ Results are stored in a **separate repository** (`ci-benchmark-results`) in two 
 - **`results/raw/*.json`** — one file per run, full data including all scores (CPU, memory, disk, compile, network), system info, and load average
 - **`results/summary.md`** — auto-generated leaderboard showing the most recent run per provider/runner, sorted by CPU score, with memory, disk, and network throughput
 
-The dashboard (`docs/index.html` and `docs/data.json`) also lives in the results repository.
+
 
 ### Example summary output
 
@@ -264,9 +264,6 @@ The dashboard (`docs/index.html` and `docs/data.json`) also lives in the results
     results/
       raw/                JSON results (one per run)
       summary.md          Generated summary table (latest per provider)
-    docs/
-      index.html          Dashboard UI
-      data.json           Consolidated results for dashboard
 
 ## License
 

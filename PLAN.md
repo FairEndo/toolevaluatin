@@ -34,15 +34,12 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
     │   ├── raw/                     # One JSON file per run (append-only history)
     │   │   └── .gitkeep
     │   └── summary.md               # Auto-generated leaderboard (latest per provider)
-    └── docs/
-        ├── index.html               # Dashboard UI
-        └── data.json                # Consolidated results for dashboard
 
 ### Key Principles
 
 > **CI configs are thin wrappers.** They install dependencies, clone the results repo, and call `./benchmarks/run.sh`. All benchmark logic lives in the scripts.
 
-> **Results live in a separate repo.** The `ci-benchmark-results` repository stores all raw JSON, the summary, and the dashboard. This keeps the benchmarking repo clean and focused on logic. The `CI_BENCH_RESULTS_DIR` env var tells `run.sh` where to write.
+> **Results live in a separate repo.** The `ci-benchmark-results` repository stores all raw JSON and the summary. This keeps the benchmarking repo clean and focused on logic. The `CI_BENCH_RESULTS_DIR` env var tells `run.sh` where to write.
 
 > **Config is flat YAML.** Simple `key: value` pairs that can be parsed with grep/sed — no YAML library needed.
 
@@ -172,15 +169,13 @@ Each Linux resource class is benchmarked on **both** Docker and machine (VM) exe
   - Deduplicated: shows only the **most recent** run per (provider, runner) pair
   - Sorted by CPU score descending
   - Includes units (events/sec) and standard deviation (±)
-- **Dashboard**: `docs/index.html` + `docs/data.json` for interactive visualization
-
 All result artifacts live in the **separate `ci-benchmark-results` repository**, not in the benchmarking repo.
 
 ## Configuration
 
 - **Source of truth**: `config/benchmarks.yml` (flat key-value format)
 - **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_RESULTS_DIR`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_MEMORY_*`, `CI_BENCH_DISK_*`, `CI_BENCH_COMPILE_*`, `CI_BENCH_NETWORK_*`
-- **`CI_BENCH_RESULTS_DIR`**: When set, `run.sh` writes results and dashboard data to this directory instead of the benchmarking repo. All CI configs set this to a clone of the `ci-benchmark-results` repo.
+- **`CI_BENCH_RESULTS_DIR`**: When set, `run.sh` writes results to this directory instead of the benchmarking repo. All CI configs set this to a clone of the `ci-benchmark-results` repo.
 
 ## Robustness Features
 
