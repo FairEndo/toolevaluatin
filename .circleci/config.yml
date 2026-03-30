@@ -54,14 +54,17 @@ commands:
     steps:
       - run:
           name: Install dependencies
-          command: sudo apt-get update && sudo apt-get install -y sysbench jq fio build-essential
+          command: |
+            sudo apt-get update && sudo apt-get install -y sysbench jq fio build-essential wget
+            HF_ARCH=$(dpkg --print-architecture)
+            wget -qO /tmp/hyperfine.deb "https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine_1.19.0_${HF_ARCH}.deb" && sudo dpkg -i /tmp/hyperfine.deb
 
   install-deps-macos:
     description: Install benchmark dependencies (macOS)
     steps:
       - run:
           name: Install dependencies (macOS)
-          command: brew install sysbench jq fio
+          command: brew install sysbench jq fio hyperfine
 
   clone-results-repo:
     description: Clone the external results repository
@@ -292,6 +295,74 @@ jobs:
       - persist-benchmark-result
 
   # ---------------------------------------------------------------------------
+  # Linux Machine Gen2 (VM) jobs
+  # ---------------------------------------------------------------------------
+  benchmark-gen2-medium-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium.gen2
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: gen2.medium
+      - persist-benchmark-result
+
+  benchmark-gen2-large-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large.gen2
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: gen2.large
+      - persist-benchmark-result
+
+  benchmark-gen2-xlarge-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: xlarge.gen2
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: gen2.xlarge
+      - persist-benchmark-result
+
+  benchmark-gen2-2xlarge-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: 2xlarge.gen2
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: gen2.2xlarge
+      - persist-benchmark-result
+
+  benchmark-gen2-2xlargeplus-artifact:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: 2xlarge+.gen2
+    steps:
+      - record-job-start
+      - checkout
+      - install-deps
+      - fetch-trigger-time
+      - run-benchmark-local:
+          runner: gen2.2xlarge+
+      - persist-benchmark-result
+
+  # ---------------------------------------------------------------------------
   # macOS jobs (Apple Silicon — M4 Pro)
   # ---------------------------------------------------------------------------
   benchmark-macos-m4pro-medium-artifact:
@@ -344,13 +415,13 @@ jobs:
 # ---------------------------------------------------------------
 # Workflow Trigger Model:
 #
-#   1. Tag push of "view-benchmark" → all 12 resource class/executor
+#   1. Tag push of "view-benchmark" → all 17 resource class/executor
 #      combinations (via tag-all-benchmarks workflow)
 #
 #   2. API with run_benchmark: true → single medium benchmark
 #      (Docker + machine, via run-benchmarks workflow)
 #
-#   3. API with run_benchmark: true, run_all: true → all 12
+#   3. API with run_benchmark: true, run_all: true → all 17
 #      resource class/executor combinations
 #      (via run-all-benchmarks workflow)
 #
@@ -425,6 +496,37 @@ workflows:
               only: /^view-benchmark$/
             branches:
               ignore: /.*/
+      # Machine Gen2 (VM)
+      - benchmark-gen2-medium-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-gen2-large-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-gen2-xlarge-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-gen2-2xlarge-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
+      - benchmark-gen2-2xlargeplus-artifact:
+          filters:
+            tags:
+              only: /^view-benchmark$/
+            branches:
+              ignore: /.*/
       # macOS
       - benchmark-macos-m4pro-medium-artifact:
           filters:
@@ -451,6 +553,11 @@ workflows:
             - benchmark-machine-xlarge-artifact
             - benchmark-machine-arm-medium-artifact
             - benchmark-machine-arm-large-artifact
+            - benchmark-gen2-medium-artifact
+            - benchmark-gen2-large-artifact
+            - benchmark-gen2-xlarge-artifact
+            - benchmark-gen2-2xlarge-artifact
+            - benchmark-gen2-2xlargeplus-artifact
             - benchmark-macos-m4pro-medium-artifact
             - benchmark-macos-m4pro-large-artifact
           filters:
@@ -486,6 +593,12 @@ workflows:
       - benchmark-machine-xlarge-artifact
       - benchmark-machine-arm-medium-artifact
       - benchmark-machine-arm-large-artifact
+      # Machine Gen2 (VM)
+      - benchmark-gen2-medium-artifact
+      - benchmark-gen2-large-artifact
+      - benchmark-gen2-xlarge-artifact
+      - benchmark-gen2-2xlarge-artifact
+      - benchmark-gen2-2xlargeplus-artifact
       # macOS
       - benchmark-macos-m4pro-medium-artifact
       - benchmark-macos-m4pro-large-artifact
@@ -502,5 +615,10 @@ workflows:
             - benchmark-machine-xlarge-artifact
             - benchmark-machine-arm-medium-artifact
             - benchmark-machine-arm-large-artifact
+            - benchmark-gen2-medium-artifact
+            - benchmark-gen2-large-artifact
+            - benchmark-gen2-xlarge-artifact
+            - benchmark-gen2-2xlarge-artifact
+            - benchmark-gen2-2xlargeplus-artifact
             - benchmark-macos-m4pro-medium-artifact
             - benchmark-macos-m4pro-large-artifact

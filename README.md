@@ -112,6 +112,16 @@ Each Linux resource class is benchmarked on **both** executor types to measure D
 | `machine.arm.medium` | `arm.medium` | arm64 | 2 | 8 GB | Dedicated ARM VM |
 | `machine.arm.large` | `arm.large` | arm64 | 4 | 16 GB | Dedicated ARM VM |
 
+#### Machine Gen2 Executor (`ubuntu-2404:current`)
+
+| Runner Name | Resource Class | Architecture | vCPUs | RAM | Notes |
+|-------------|----------------|--------------|-------|-----|-------|
+| `gen2.medium` | `medium.gen2` | x64 | 2 | 8 GiB | Gen2 VM — up to 180% faster multi-threaded |
+| `gen2.large` | `large.gen2` | x64 | 4 | 16 GiB | Gen2 VM — up to 180% faster multi-threaded |
+| `gen2.xlarge` | `xlarge.gen2` | x64 | 8 | 32 GiB | Gen2 VM — up to 180% faster multi-threaded |
+| `gen2.2xlarge` | `2xlarge.gen2` | x64 | 16 | 64 GiB | Gen2 VM — up to 180% faster multi-threaded |
+| `gen2.2xlarge+` | `2xlarge+.gen2` | x64 | 32 | 128 GiB | Gen2 VM — up to 180% faster multi-threaded |
+
 #### macOS Executor
 
 | Runner Name | Resource Class | Architecture | vCPUs | RAM | Notes |
@@ -119,7 +129,7 @@ Each Linux resource class is benchmarked on **both** executor types to measure D
 | `m4pro.medium` | `m4pro.medium` | arm64 | 6 | 12 GB | Apple Silicon (M4 Pro) |
 | `m4pro.large` | `m4pro.large` | arm64 | 12 | 24 GB | Apple Silicon (M4 Pro) |
 
-> **Note:** Larger resource classes, ARM runners, and macOS runners require a CircleCI paid plan. Machine executors get more RAM than Docker executors at the same resource class because there is no container overhead. The `machine.*` runner names in results distinguish VM jobs from Docker jobs on the same resource class.
+> **Note:** Larger resource classes, ARM runners, and macOS runners require a CircleCI paid plan. Machine executors get more RAM than Docker executors at the same resource class because there is no container overhead. The `machine.*` runner names in results distinguish VM jobs from Docker jobs on the same resource class. The `gen2.*` runner names identify Gen2 VM jobs, which use newer CPUs with up to 180% faster multi-threaded performance.
 
 ### GitLab CI
 
@@ -137,17 +147,17 @@ Each Linux resource class is benchmarked on **both** executor types to measure D
 
 All CI configs are thin wrappers that call a single script:
 
-1. **CI installs dependencies** (`sysbench`, `jq`, `fio`, `build-essential`)
+1. **CI installs dependencies** (`sysbench`, `jq`, `fio`, `build-essential`, `hyperfine`)
 2. **CI calls `./benchmarks/run.sh`** with env vars identifying the provider
 3. **`run.sh` reads config** from `config/benchmarks.yml`
-4. **Benchmarks execute** — CPU, memory, disk I/O, compile, and network — 5 measured iterations (default), collecting median, min, max, and stddev
+4. **Benchmarks execute** — CPU, memory, disk I/O, compile, network, and multi-thread scaling — collecting median, min, max, and stddev
 6. **Results are saved** as JSON to `results/raw/` and a summary is generated at `results/summary.md` in the **results repository**
 7. **CI commits and pushes** the results to a separate `ci-benchmark-results` repository
 
 ## Adding a New CI Provider
 
 1. Create a new CI config file that:
-   - Installs `sysbench`, `jq`, `fio`, and `build-essential` (or platform equivalents)
+   - Installs `sysbench`, `jq`, `fio`, `build-essential`, and `hyperfine` (or platform equivalents)
    - Runs `./benchmarks/run.sh` with `CI_BENCH_PROVIDER` and `CI_BENCH_RUNNER` env vars
    - Clones the results repo, sets `CI_BENCH_RESULTS_DIR`, and pushes results to it
 2. That's it — no benchmark logic changes needed.
@@ -179,6 +189,10 @@ Override per-run via environment variables:
 | `CI_BENCH_NETWORK_ITERATIONS` | Number of measured iterations (network) | `5` |
 | `CI_BENCH_NETWORK_DOWNLOAD_BYTES` | Size of the test download in bytes | `26214400` (25 MiB) |
 | `CI_BENCH_NETWORK_URL` | Override the download test URL (for restricted egress) | (auto-detected) |
+| `CI_BENCH_THREADING_ENABLED` | Enable/disable threading benchmark | `true` |
+| `CI_BENCH_THREADING_RUNS` | Number of timed runs per thread count | `3` |
+| `CI_BENCH_THREADING_WARMUP` | Number of warmup runs per thread count | `1` |
+| `CI_BENCH_THREADING_MAX_PRIME` | Sysbench cpu-max-prime for threading test | `20000` |
 
 ## Results Repository Setup
 
@@ -211,7 +225,7 @@ The results repo name defaults to `{owner}/ci-benchmark-results` but can be over
 | Parameters | Behavior |
 |------------|----------|
 | `run_benchmark: true` | Runs a benchmark on `medium` (Docker + machine) |
-| `run_benchmark: true, run_all: true` | Runs benchmarks across all 12 executor/resource-class combinations in parallel (5 Docker + 5 machine + 2 macOS) |
+| `run_benchmark: true, run_all: true` | Runs benchmarks across all 17 executor/resource-class combinations in parallel (5 Docker + 5 machine + 5 gen2 + 2 macOS) |
 
 ### GitLab CI
 
@@ -231,16 +245,16 @@ Results are stored in a **separate repository** (`ci-benchmark-results`) in two 
 
 ### Example summary output
 
-| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Network (median) | Net Stddev | Processor | vCPUs | RAM |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| github-actions | ubuntu-latest-16-cores | 5842.1 events/sec | ±25.30 | 12450.80 MiB/sec | ±85.10 | 1245.30 | ±42.10 | 285.40 MB/s | ±18.20 | AMD EPYC 7R13 | 16 | 65536 MB |
-| github-actions | ubuntu-latest-8-cores | 4921.3 events/sec | ±31.40 | 10230.50 MiB/sec | ±92.40 | 1180.50 | ±38.70 | 272.10 MB/s | ±22.50 | AMD EPYC 7R13 | 8 | 32768 MB |
-| circleci | xlarge | 4215.8 events/sec | ±35.20 | 9845.60 MiB/sec | ±105.70 | 980.20 | ±55.30 | 195.30 MB/s | ±15.80 | AMD EPYC 7R13 | 8 | 16384 MB |
-| circleci | large | 3812.4 events/sec | ±39.80 | 9120.30 MiB/sec | ±110.20 | 920.40 | ±48.90 | 188.70 MB/s | ±19.40 | AMD EPYC 7R13 | 4 | 8192 MB |
-| circleci | medium | 3587.2 events/sec | ±42.10 | 8523.40 MiB/sec | ±120.30 | 850.10 | ±52.60 | 175.20 MB/s | ±21.30 | AMD EPYC 7R13 | 2 | 4096 MB |
-| github-actions | ubuntu-latest | 3421.5 events/sec | ±38.50 | 7891.20 MiB/sec | ±95.60 | 1050.80 | ±45.20 | 310.50 MB/s | ±25.70 | AMD EPYC 7763 | 2 | 7168 MB |
-| github-actions | macos-latest | 3105.7 events/sec | ±28.90 | 11520.10 MiB/sec | ±78.30 | 1320.60 | ±35.40 | 245.80 MB/s | ±12.90 | Apple M1 | 3 | 7168 MB |
-| gitlab | small-amd64 | 3350.4 events/sec | ±36.70 | 7950.60 MiB/sec | ±88.40 | 890.30 | ±50.10 | 160.40 MB/s | ±18.60 | AMD EPYC 7B13 | 2 | 8192 MB |
+| Provider | Runner | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Network (median) | Net Stddev | Threading | Threads | Processor | vCPUs | RAM |
+|---|---|---|---|---|---|---|---|---|---|-----------|---------|---|---|---|
+| github-actions | ubuntu-latest-16-cores | 5842.1 events/sec | ±25.30 | 12450.80 MiB/sec | ±85.10 | 1245.30 | ±42.10 | 285.40 MB/s | ±18.20 | 15.42x | 1→16 | AMD EPYC 7R13 | 16 | 65536 MB |
+| github-actions | ubuntu-latest-8-cores | 4921.3 events/sec | ±31.40 | 10230.50 MiB/sec | ±92.40 | 1180.50 | ±38.70 | 272.10 MB/s | ±22.50 | 7.65x | 1→8 | AMD EPYC 7R13 | 8 | 32768 MB |
+| circleci | xlarge | 4215.8 events/sec | ±35.20 | 9845.60 MiB/sec | ±105.70 | 980.20 | ±55.30 | 195.30 MB/s | ±15.80 | 7.21x | 1→8 | AMD EPYC 7R13 | 8 | 16384 MB |
+| circleci | large | 3812.4 events/sec | ±39.80 | 9120.30 MiB/sec | ±110.20 | 920.40 | ±48.90 | 188.70 MB/s | ±19.40 | 3.78x | 1→4 | AMD EPYC 7R13 | 4 | 8192 MB |
+| circleci | medium | 3587.2 events/sec | ±42.10 | 8523.40 MiB/sec | ±120.30 | 850.10 | ±52.60 | 175.20 MB/s | ±21.30 | 1.89x | 1→2 | AMD EPYC 7R13 | 2 | 4096 MB |
+| github-actions | ubuntu-latest | 3421.5 events/sec | ±38.50 | 7891.20 MiB/sec | ±95.60 | 1050.80 | ±45.20 | 310.50 MB/s | ±25.70 | 1.85x | 1→2 | AMD EPYC 7763 | 2 | 7168 MB |
+| github-actions | macos-latest | 3105.7 events/sec | ±28.90 | 11520.10 MiB/sec | ±78.30 | 1320.60 | ±35.40 | 245.80 MB/s | ±12.90 | 2.82x | 1→3 | Apple M1 | 3 | 7168 MB |
+| gitlab | small-amd64 | 3350.4 events/sec | ±36.70 | 7950.60 MiB/sec | ±88.40 | 890.30 | ±50.10 | 160.40 MB/s | ±18.60 | 1.87x | 1→2 | AMD EPYC 7B13 | 2 | 8192 MB |
 
 ## Project Structure
 
@@ -251,6 +265,7 @@ Results are stored in a **separate repository** (`ci-benchmark-results`) in two 
       lib/disk.sh         Disk I/O benchmark (fio)
       lib/compile.sh      Compile benchmark (Redis build)
       lib/network.sh      Network benchmark (curl download + TTFB)
+      lib/threading.sh    Multi-thread scaling benchmark (hyperfine)
     config/
       benchmarks.yml      Benchmark configuration (flat key-value)
     .github/workflows/    GitHub Actions config

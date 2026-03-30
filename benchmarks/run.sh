@@ -18,6 +18,10 @@ set -euo pipefail
 #   CI_BENCH_MEMORY_ITERATIONS   — number of measured iterations (memory)
 #   CI_BENCH_MEMORY_BLOCK_SIZE   — sysbench memory-block-size parameter
 #   CI_BENCH_MEMORY_TOTAL_SIZE   — sysbench memory-total-size parameter
+#   CI_BENCH_THREADING_ENABLED   — "true" / "false"
+#   CI_BENCH_THREADING_RUNS      — number of timed runs per thread count
+#   CI_BENCH_THREADING_WARMUP    — number of warmup runs per thread count
+#   CI_BENCH_THREADING_MAX_PRIME — sysbench cpu-max-prime for threading test
 #   CI_BENCH_RESULTS_DIR             — path to external results repository root
 ###############################################################################
 
@@ -150,6 +154,10 @@ if [[ -f "$CONFIG_FILE" ]]; then
     CFG_NETWORK_ENABLED="$(yaml_get       "$CONFIG_FILE" "network_enabled"        "true")"
     CFG_NETWORK_ITERATIONS="$(yaml_get    "$CONFIG_FILE" "network_iterations"     "5")"
     CFG_NETWORK_DOWNLOAD_BYTES="$(yaml_get "$CONFIG_FILE" "network_download_bytes" "26214400")"
+    CFG_THREADING_ENABLED="$(yaml_get    "$CONFIG_FILE" "threading_enabled"   "true")"
+    CFG_THREADING_RUNS="$(yaml_get       "$CONFIG_FILE" "threading_runs"      "3")"
+    CFG_THREADING_WARMUP="$(yaml_get     "$CONFIG_FILE" "threading_warmup"    "1")"
+    CFG_THREADING_MAX_PRIME="$(yaml_get  "$CONFIG_FILE" "threading_max_prime" "20000")"
 else
     log "  Config file not found — using defaults"
     CFG_CPU_ENABLED="true"
@@ -167,6 +175,10 @@ else
     CFG_NETWORK_ENABLED="true"
     CFG_NETWORK_ITERATIONS="5"
     CFG_NETWORK_DOWNLOAD_BYTES="26214400"
+    CFG_THREADING_ENABLED="true"
+    CFG_THREADING_RUNS="3"
+    CFG_THREADING_WARMUP="1"
+    CFG_THREADING_MAX_PRIME="20000"
 fi
 
 # Environment variable overrides take precedence
@@ -185,6 +197,10 @@ COMPILE_ITERATIONS="${CI_BENCH_COMPILE_ITERATIONS:-$CFG_COMPILE_ITERATIONS}"
 NETWORK_ENABLED="${CI_BENCH_NETWORK_ENABLED:-$CFG_NETWORK_ENABLED}"
 NETWORK_ITERATIONS="${CI_BENCH_NETWORK_ITERATIONS:-$CFG_NETWORK_ITERATIONS}"
 NETWORK_DOWNLOAD_BYTES="${CI_BENCH_NETWORK_DOWNLOAD_BYTES:-$CFG_NETWORK_DOWNLOAD_BYTES}"
+THREADING_ENABLED="${CI_BENCH_THREADING_ENABLED:-$CFG_THREADING_ENABLED}"
+THREADING_RUNS="${CI_BENCH_THREADING_RUNS:-$CFG_THREADING_RUNS}"
+THREADING_WARMUP="${CI_BENCH_THREADING_WARMUP:-$CFG_THREADING_WARMUP}"
+THREADING_MAX_PRIME="${CI_BENCH_THREADING_MAX_PRIME:-$CFG_THREADING_MAX_PRIME}"
 PROVIDER="${CI_BENCH_PROVIDER:-unknown}"
 RUNNER="${CI_BENCH_RUNNER:-default}"
 
@@ -205,6 +221,10 @@ log "  compile_iterations = ${COMPILE_ITERATIONS}"
 log "  network_enabled    = ${NETWORK_ENABLED}"
 log "  network_iterations = ${NETWORK_ITERATIONS}"
 log "  network_dl_bytes   = ${NETWORK_DOWNLOAD_BYTES}"
+log "  threading_enabled  = ${THREADING_ENABLED}"
+log "  threading_runs     = ${THREADING_RUNS}"
+log "  threading_warmup   = ${THREADING_WARMUP}"
+log "  threading_max_prime= ${THREADING_MAX_PRIME}"
 
 # ---------------------------------------------------------------------------
 # Collect system information
@@ -530,6 +550,37 @@ else
     log "Network benchmark is disabled — skipping"
 fi
 
+# --- Threading benchmark --------------------------------------------------------
+if [[ "${THREADING_ENABLED}" == "true" ]]; then
+    log "Running threading benchmark..."
+    THREADING_START=$(timer_start)
+
+    THREADING_SCRIPT="${LIB_DIR}/threading.sh"
+    THREADING_JSON=""
+
+    if [[ -f "$THREADING_SCRIPT" ]]; then
+        debug_log "Calling: bash $THREADING_SCRIPT $THREADING_RUNS $THREADING_WARMUP $THREADING_MAX_PRIME"
+        THREADING_JSON="$(bash "$THREADING_SCRIPT" "$THREADING_RUNS" "$THREADING_WARMUP" "$THREADING_MAX_PRIME")" || {
+            log "  WARNING: threading.sh failed"
+            THREADING_JSON=""
+        }
+    else
+        log "  WARNING: benchmarks/lib/threading.sh not found — skipping threading benchmark"
+    fi
+
+    if [[ -n "$THREADING_JSON" ]]; then
+        SCALING="$(echo "$THREADING_JSON" | jq '.scaling_factor')"
+        MAX_T="$(echo "$THREADING_JSON" | jq '.max_threads')"
+        log "  scaling factor = ${SCALING}x across ${MAX_T} threads"
+        BENCHMARKS_JSON="$(echo "$BENCHMARKS_JSON" | jq --argjson threading "$THREADING_JSON" '. + { "threading": $threading }')"
+    fi
+
+    THREADING_ELAPSED=$(timer_elapsed "$THREADING_START")
+    log "  Threading benchmark completed in ${THREADING_ELAPSED}s"
+else
+    log "Threading benchmark is disabled — skipping"
+fi
+
 # ---------------------------------------------------------------------------
 # Build final JSON result
 # ---------------------------------------------------------------------------
@@ -610,8 +661,8 @@ SUMMARY_FILE="${RESULTS_DIR}/summary.md"
     echo "Showing the most recent run per provider/runner combination."
     echo "Full history is available in [\`results/raw/\`](raw/)."
     echo ""
-    echo "| Provider | Runner | OS | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Network (median) | Net Stddev | Processor | vCPUs | RAM |"
-    echo "|----------|--------|----|--------------------|------------|-----------------|------------|-------------------|-------------|------------------|------------|-----------|-------|-----|"
+    echo "| Provider | Runner | OS | CPU Score (median) | CPU Stddev | Memory (median) | Mem Stddev | Disk (composite) | Disk Stddev | Network (median) | Net Stddev | Threading | Threads | Processor | vCPUs | RAM |"
+    echo "|----------|--------|----|--------------------|------------|-----------------|------------|-------------------|-------------|------------------|------------|-----------|---------|-----------|-------|-----|"
 } > "$SUMMARY_FILE"
 
 # Strategy: emit tab-separated rows with timestamp, then sort to pick the
@@ -633,6 +684,8 @@ for json_file in "${RAW_DIR}"/*.json; do
             ((.benchmarks.disk.composite.stddev // 0) | tostring),
             ((.benchmarks.network.composite.median // 0) | tostring),
             ((.benchmarks.network.composite.stddev // 0) | tostring),
+            ((.benchmarks.threading.scaling_factor // 0) | tostring),
+            ((.benchmarks.threading.max_threads // 0) | tostring),
             .system.processor // "unknown",
             ((.system.vcpus // 0) | tostring),
             ((.system.ram_mb // 0) | tostring)
@@ -659,7 +712,7 @@ if [[ -n "$ALL_ROWS" ]]; then
     # Sort by CPU median score (field 4) descending, then format as Markdown
     printf '%s\n' "$DEDUPED" \
         | sort -t$'\t' -k5 -rn \
-        | while IFS=$'\t' read -r r_provider r_runner r_ts r_os r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_net r_net_sd r_proc r_vcpus r_ram; do
+        | while IFS=$'\t' read -r r_provider r_runner r_ts r_os r_cpu r_cpu_sd r_mem r_mem_sd r_disk r_disk_sd r_net r_net_sd r_threading r_threading_threads r_proc r_vcpus r_ram; do
             # Format memory column: show "—" if no memory data (value is 0)
             if [[ "$r_mem" == "0" ]]; then
                 mem_display="—"
@@ -683,8 +736,16 @@ if [[ -n "$ALL_ROWS" ]]; then
                 net_display="${r_net} MB/s"
                 net_sd_display="±${r_net_sd}"
             fi
-            printf '| %s | %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
-                "$r_provider" "$r_runner" "$r_os" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$net_display" "$net_sd_display" "$r_proc" "$r_vcpus" "$r_ram"
+            # Format threading column: show "—" if no threading data (value is 0)
+            if [[ "$r_threading" == "0" ]]; then
+                threading_display="—"
+                threading_threads_display="—"
+            else
+                threading_display="${r_threading}x"
+                threading_threads_display="1→${r_threading_threads}"
+            fi
+            printf '| %s | %s | %s | %s events/sec | ±%s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s MB |\n' \
+                "$r_provider" "$r_runner" "$r_os" "$r_cpu" "$r_cpu_sd" "$mem_display" "$mem_sd_display" "$disk_display" "$disk_sd_display" "$net_display" "$net_sd_display" "$threading_display" "$threading_threads_display" "$r_proc" "$r_vcpus" "$r_ram"
           done >> "$SUMMARY_FILE"
 fi
 

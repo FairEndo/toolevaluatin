@@ -36,3 +36,12 @@ network_download_bytes: 26214400
 # Note: measures download throughput (MB/s) and latency/TTFB (ms) via curl.
 # Uses Cloudflare speed-test CDN by default. Override with CI_BENCH_NETWORK_URL.
 # 26214400 bytes = 25 MiB — large enough to saturate the pipe, small enough to finish quickly.
+
+# --- Threading Benchmark ---
+threading_enabled: true
+threading_runs: 3
+threading_warmup: 1
+threading_max_prime: 20000
+# Note: uses hyperfine to measure sysbench CPU scaling across thread counts.
+# Thread counts are auto-detected from vCPUs (powers of 2 up to max).
+# Key metric: scaling factor (single-thread time / max-thread time).

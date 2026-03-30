@@ -50,7 +50,10 @@ stages:
     CI_BENCH_TRIGGER_TIME: $CI_PIPELINE_CREATED_AT
     CI_BENCH_JOB_STARTED_AT: $CI_JOB_STARTED_AT
   before_script:
-    - apt-get update && apt-get install -y sysbench jq git fio build-essential
+    - apt-get update && apt-get install -y sysbench jq git fio build-essential wget
+    - |
+      HF_ARCH=$(dpkg --print-architecture)
+      wget -qO /tmp/hyperfine.deb "https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine_1.19.0_${HF_ARCH}.deb" && dpkg -i /tmp/hyperfine.deb
   script:
     # Clone the external results repo
     - bash scripts/clone-results.sh

@@ -19,7 +19,8 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
     │       ├── memory.sh            # Memory benchmark logic (sysbench)
     │       ├── disk.sh              # Disk I/O benchmark logic (fio)
     │       ├── compile.sh           # Compile benchmark logic (Redis build)
-    │       └── network.sh           # Network benchmark logic (curl download + TTFB)
+    │       ├── network.sh           # Network benchmark logic (curl download + TTFB)
+    │       └── threading.sh           # Multi-thread scaling (hyperfine + sysbench)
     ├── config/
     │   └── benchmarks.yml           # Flat key-value config for benchmarks
     ├── .github/workflows/
@@ -102,6 +103,20 @@ Compare CPU, memory, disk I/O, compile, and network performance across CI provid
 | **Statistics** | Median, min, max, standard deviation (for both throughput and latency) |
 | **Override** | Set `CI_BENCH_NETWORK_URL` for runners with restricted egress or private endpoints |
 
+## Benchmark: Threading
+
+| Detail | Decision |
+|---|---|
+| **Tool** | `hyperfine` wrapping `sysbench cpu` |
+| **Command** | `hyperfine --warmup 1 --runs 3 --parameter-list t <thread_counts> "sysbench cpu --cpu-max-prime=20000 --threads={t} run"` |
+| **Thread counts** | Powers of 2 from 1 to max vCPUs (e.g. 1,2,4,8 for an 8-core runner) |
+| **Metric** | Scaling factor = single-threaded time ÷ max-threaded time (higher = better scaling) |
+| **Runs** | 3 timed runs per thread count (default) |
+| **Warmup** | 1 warmup run per thread count |
+| **Statistics** | Mean, median, min, max, standard deviation per thread count (from hyperfine) |
+| **Additional data** | Per-thread-count wall-clock times, max thread count |
+| **Notes** | Measures how well a runner's vCPUs actually scale under parallel load. A perfect scaling factor equals the thread count (e.g. 8.0x on an 8-core machine). Real-world factors are lower due to shared caches, memory bandwidth, and noisy neighbors. |
+
 ## CI Providers
 
 ### GitHub Actions
@@ -143,6 +158,18 @@ Each Linux resource class is benchmarked on **both** Docker and machine (VM) exe
 
 > Machine executors run in a dedicated VM with no container overlay filesystem, no cgroup-imposed vCPU mismatch (Docker's `nproc` reports the host's cores, not the container's limit), and no noisy-neighbor overhead from other containers sharing the same host. They also get more RAM than Docker at the same resource class.
 
+#### Machine Gen2 Executor (`ubuntu-2404:current`)
+
+| Runner Name | Resource Class | Architecture | vCPUs | RAM | Trigger |
+|---|---|---|---|---|---|
+| `gen2.medium` | `medium.gen2` | x64 | 2 | 8 GiB | API trigger with `run_benchmark: true, run_all: true` — paid plan |
+| `gen2.large` | `large.gen2` | x64 | 4 | 16 GiB | API trigger with `run_benchmark: true, run_all: true` — paid plan |
+| `gen2.xlarge` | `xlarge.gen2` | x64 | 8 | 32 GiB | API trigger with `run_benchmark: true, run_all: true` — paid plan |
+| `gen2.2xlarge` | `2xlarge.gen2` | x64 | 16 | 64 GiB | API trigger with `run_benchmark: true, run_all: true` — paid plan |
+| `gen2.2xlarge+` | `2xlarge+.gen2` | x64 | 32 | 128 GiB | API trigger with `run_benchmark: true, run_all: true` — paid plan |
+
+> Gen2 machine executors use newer-generation CPUs with up to 180% faster multi-threaded performance compared to standard machine executors.
+
 #### macOS Executor
 
 | Runner Name | Resource Class | Architecture | vCPUs | RAM | Trigger |
@@ -174,7 +201,7 @@ All result artifacts live in the **separate `ci-benchmark-results` repository**,
 ## Configuration
 
 - **Source of truth**: `config/benchmarks.yml` (flat key-value format)
-- **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_RESULTS_DIR`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_MEMORY_*`, `CI_BENCH_DISK_*`, `CI_BENCH_COMPILE_*`, `CI_BENCH_NETWORK_*`
+- **Env var overrides**: `CI_BENCH_PROVIDER`, `CI_BENCH_RUNNER`, `CI_BENCH_RESULTS_DIR`, `CI_BENCH_CPU_ENABLED`, `CI_BENCH_ITERATIONS`, `CI_BENCH_CPU_MAX_PRIME`, `CI_BENCH_MEMORY_*`, `CI_BENCH_DISK_*`, `CI_BENCH_COMPILE_*`, `CI_BENCH_NETWORK_*`, `CI_BENCH_THREADING_*`
 - **`CI_BENCH_RESULTS_DIR`**: When set, `run.sh` writes results to this directory instead of the benchmarking repo. All CI configs set this to a clone of the `ci-benchmark-results` repo.
 
 ## Robustness Features
