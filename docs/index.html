@@ -360,11 +360,9 @@
             <section class="card" id="metric-info">
                 <h2>How to Read These Results</h2>
                 <p class="description">
-                    All benchmarks use <strong>sysbench</strong> with a single
-                    thread (<code>--threads=1</code>) to measure single-core
-                    performance — the main bottleneck for most CI workloads.
-                    Each metric runs 5 iterations with a warmup pass; the
-                    <strong>median</strong> is the primary comparison value.
+                    Five benchmarks (CPU, memory, disk, compile, network) each
+                    run 5 iterations; the <strong>median</strong> is the primary
+                    comparison value.
                 </p>
                 <dl class="metric-defs">
                     <div class="metric-def">
