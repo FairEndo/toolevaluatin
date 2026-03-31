@@ -135,7 +135,7 @@ hyperfine \
   --export-json "$TMPFILE" \
   --style basic \
   "sysbench cpu --cpu-max-prime=${cpu_max_prime} --threads={t} run" \
-  2>&2
+  >&2
 
 echo "Hyperfine complete — parsing results..." >&2
 
